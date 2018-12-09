@@ -202,10 +202,10 @@ namespace BoxLayouting
             this.Length = 0.0f;
             this.Unit = BoxValueUnit.Null;
 
-            var match = value != null ? Regex.Match(value, @"(?<length>\d+(\.\d+)?)(?<unit>px|vw|vh|vmax|vmin|%)?") : Match.Empty;
-            if (match.Success)
+            if (value != null)
             {
-                if (float.TryParse(match.Groups["length"].Value, out this.Length))
+                var match = Regex.Match(value, @"^(?<length>[+-]?\d+(\.\d+)?)(?<unit>(\w+|%))?$");
+                if (match.Success && float.TryParse(match.Groups["length"].Value, out this.Length))
                 {
                     if (match.Groups["unit"].Success)
                     {
@@ -216,14 +216,17 @@ namespace BoxLayouting
                         else if (unit == "vmax") this.Unit = BoxValueUnit.Vmax;
                         else if (unit == "vmin") this.Unit = BoxValueUnit.Vmin;
                         else if (unit == "%") this.Unit = BoxValueUnit.Parcent;
+                        else throw new ArgumentException($"Unknown value unit '{unit}'.");
                     }
                     else
                     {
-                        if(this.Length == 0.0f)
-                        {
-                            this.Unit = BoxValueUnit.Pixel;
-                        }
+                        // 0だけは単位省略が許される
+                        this.Unit = (this.Length == 0.0f) ? BoxValueUnit.Pixel : throw new ArgumentException("Unit of value is missing.");
                     }
+                }
+                else
+                {
+                    throw new ArgumentException("Invalid value format.");
                 }
             }
         }
