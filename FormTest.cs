@@ -1,20 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Diagnostics;
 
 namespace BoxLayouting
 {
     public partial class FormTest : Form
     {
-        BoxContainer view = new BoxContainer();
+        BoxContainer boxContainer = new BoxContainer();
 
         public FormTest()
         {
@@ -33,19 +28,20 @@ namespace BoxLayouting
             string previous = null;
             foreach (var type in new[] { "byproperty", "byjson" })
             {
-                var v = new BoxContainer();
+                var swCreation = Stopwatch.StartNew();
+                var container = new BoxContainer();
                 try
                 {
                     if (type == "byjson")
                     {
-                        v.AddFrom(File.ReadAllText(@"..\..\test.json"), (box, dataText) =>
+                        container.AddFrom(File.ReadAllText(@"..\..\test.json"), (box, dataText) =>
                         {
                             box.Data = new Pen(Color.FromName(dataText), 1.0f);
                         });
                     }
                     else
                     {
-                        var a = v.Add("a");
+                        var a = container.Add("a");
                         a.Data = new Pen(Color.Red, 1.0f);
                         //a.SetPosition("50px");
                         a.PositionTop = a.PositionLeft = a.PositionRight = a.PositionBottom = "50px";
@@ -88,7 +84,7 @@ namespace BoxLayouting
                         ae.CenterHorizontal = ae.CenterVertical = "50%";
                         ae.PositionTop = ae.PositionLeft = ae.PositionRight = ae.PositionBottom = "100px";
 
-                        var b = v.Add("b");
+                        var b = container.Add("b");
                         b.Data = new Pen(Color.Blue, 1.0f);
                         //b.SetPosition("20vh", "20vw");
                         b.PositionTop = b.PositionBottom = "20vh";
@@ -105,20 +101,22 @@ namespace BoxLayouting
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex);
+                    Trace.TraceError(ex.ToString());
                 }
+                swCreation.Stop();
 
-                v.Width = this.ClientRectangle.Width;
-                v.Height = this.ClientRectangle.Height;
-                var sw = Stopwatch.StartNew();
+                container.Width = this.ClientRectangle.Width;
+                container.Height = this.ClientRectangle.Height;
+
+                var swRecalculate = Stopwatch.StartNew();
                 for (var i = 0; i < 1000; i++)
                 {
-                    v.Recalculate();
+                    container.Recalculate();
                 }
-                Console.WriteLine($"Recalculate: {sw.ElapsedMilliseconds / 1000.0f}ms");
+                swRecalculate.Stop();
 
                 var sb = new StringBuilder();
-                v.Traverse(box =>
+                container.Traverse(box =>
                 {
                     sb.AppendLine($"{box.Name}:{box.Bounds.ToString()}");
                 });
@@ -127,7 +125,11 @@ namespace BoxLayouting
                 Debug.Assert(previous == null || previous == t);
                 previous = t;
 
-                this.view = v;
+                Trace.TraceInformation($"[{type}]");
+                Trace.TraceInformation($"CreationTime: {swCreation.ElapsedMilliseconds / 1000.0f}ms");
+                Trace.TraceInformation($"RecalculateTime: {swRecalculate.ElapsedMilliseconds / 1000.0f}ms");
+
+                this.boxContainer = container;
             }
 
             this.Invalidate();
@@ -137,9 +139,9 @@ namespace BoxLayouting
         {
             base.OnResize(e);
 
-            this.view.Width = this.ClientRectangle.Width;
-            this.view.Height = this.ClientRectangle.Height;
-            this.view.Recalculate();
+            this.boxContainer.Width = this.ClientRectangle.Width;
+            this.boxContainer.Height = this.ClientRectangle.Height;
+            this.boxContainer.Recalculate();
 
             this.Invalidate();
         }
@@ -151,7 +153,7 @@ namespace BoxLayouting
             e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
             e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-            this.view.Traverse(box =>
+            this.boxContainer.Traverse(box =>
             {
                 var pen = (Pen)box.Data;
                 e.Graphics.DrawRectangle(pen, box.Bounds);
