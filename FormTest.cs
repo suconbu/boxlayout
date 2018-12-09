@@ -14,7 +14,7 @@ namespace BoxLayouting
 {
     public partial class FormTest : Form
     {
-        View view = new View();
+        BoxContainer view = new BoxContainer();
 
         public FormTest()
         {
@@ -30,9 +30,10 @@ namespace BoxLayouting
         {
             base.OnLoad(e);
 
+            string previous = null;
             foreach (var type in new[] { "byproperty", "byjson" })
             {
-                var v = new View();
+                var v = new BoxContainer();
                 try
                 {
                     if (type == "byjson")
@@ -47,34 +48,34 @@ namespace BoxLayouting
                         var a = v.Add("a");
                         a.Data = new Pen(Color.Red, 1.0f);
                         //a.SetPosition("50px");
-                        a.Top = a.Left = a.Right = a.Bottom = "50px";
+                        a.PositionTop = a.PositionLeft = a.PositionRight = a.PositionBottom = "50px";
 
                         var aa = a.Add("a.a");
                         aa.Data = new Pen(Color.Orange, 1.0f);
                         //aa.SetSize("50px", "50px");
-                        aa.Width = aa.Height = "50px";
+                        aa.SizeWidth = aa.SizeHeight = "50px";
 
                         var ab = a.Add("a.b");
                         ab.Data = new Pen(Color.Orange, 1.0f);
                         //ab.SetSize("50px", "50px");
                         //ab.SetPosition("50px", "50px", null, null);
-                        ab.Width = ab.Height = "50px";
-                        ab.Top = ab.Right = "50px";
+                        ab.SizeWidth = ab.SizeHeight = "50px";
+                        ab.PositionTop = ab.PositionRight = "50px";
 
                         var ac = a.Add("a.c");
                         ac.Data = new Pen(Color.Orange, 1.0f);
                         //ac.SetSize("50px", "50px");
                         //ac.SetPosition(null, null, "50px", "50px");
-                        ac.Width = ac.Height = "50px";
-                        ac.Bottom = ac.Left = "50px";
+                        ac.SizeWidth = ac.SizeHeight = "50px";
+                        ac.PositionBottom = ac.PositionLeft = "50px";
 
                         var ad = a.Add("a.d");
                         ad.Data = new Pen(Color.Orange, 1.0f);
                         //ad.SetSize("50px", "50px");
                         //// Size指定ありかつPosition両端指定の場合はLeft/Topの方を採用
                         //ad.SetPosition("100px", "100px", "100px", "100px");
-                        ad.Width = ad.Height = "50px";
-                        ad.Top = ad.Left = ad.Right = ad.Bottom = "100px";
+                        ad.SizeWidth = ad.SizeHeight = "50px";
+                        ad.PositionTop = ad.PositionLeft = ad.PositionRight = ad.PositionBottom = "100px";
 
                         var ae = a.Add("a.e");
                         ae.Data = new Pen(Color.Orange, 1.0f);
@@ -83,23 +84,23 @@ namespace BoxLayouting
                         //ae.SetCenter("50%", "50%");
                         //// Center指定ありの場合はPositionはすべて無視
                         //ae.SetPosition("100px", "100px", "100px", "100px");
-                        ae.Width = ae.Height = "50px";
-                        ae.HorizontalCenter = ae.VerticalCenter = "50%";
-                        ae.Top = ae.Left = ae.Right = ae.Bottom = "100px";
+                        ae.SizeWidth = ae.SizeHeight = "50px";
+                        ae.CenterHorizontal = ae.CenterVertical = "50%";
+                        ae.PositionTop = ae.PositionLeft = ae.PositionRight = ae.PositionBottom = "100px";
 
                         var b = v.Add("b");
                         b.Data = new Pen(Color.Blue, 1.0f);
                         //b.SetPosition("20vh", "20vw");
-                        b.Top = b.Bottom = "20vh";
-                        b.Left = b.Right = "20vw";
+                        b.PositionTop = b.PositionBottom = "20vh";
+                        b.PositionLeft = b.PositionRight = "20vw";
 
                         var ba = b.Add("b.a");
                         ba.Data = new Pen(Color.RoyalBlue, 1.0f);
                         //ba.SetSize("100px", "100px");
                         //ba.SetPosition("-50px", null, null, "+50px");
-                        ba.Width = ba.Height = "100px";
-                        ba.Top = "-50px";
-                        ba.Left = "+50px";
+                        ba.SizeWidth = ba.SizeHeight = "100px";
+                        ba.PositionTop = "-50px";
+                        ba.PositionLeft = "+50px";
                     }
                 }
                 catch (Exception ex)
@@ -121,7 +122,10 @@ namespace BoxLayouting
                 {
                     sb.AppendLine($"{box.Name}:{box.Bounds.ToString()}");
                 });
-                File.WriteAllText($"test_bounds_{type}_{DateTime.Now.Ticks}.txt", sb.ToString());
+                var t = sb.ToString();
+                File.WriteAllText($"test_bounds_{type}_{DateTime.Now.Ticks}.txt", t);
+                Debug.Assert(previous == null || previous == t);
+                previous = t;
 
                 this.view = v;
             }

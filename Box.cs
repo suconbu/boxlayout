@@ -7,15 +7,15 @@ using System.Text.RegularExpressions;
 
 namespace BoxLayouting
 {
-    class View
+    class BoxContainer
     {
         public int Width { get; set; }
         public int Height { get; set; }
 
         Box rootBox = new Box(string.Empty);
 
-        public View() { }
-        public View(int width, int height)
+        public BoxContainer() { }
+        public BoxContainer(int width, int height)
         {
             this.Width = width;
             this.Height = height;
@@ -112,10 +112,10 @@ namespace BoxLayouting
                     }
                     else
                     {
-                        if (key2 == "top") this.Top = value;
-                        else if (key2 == "left") this.Left = value;
-                        else if (key2 == "right") this.Right = value;
-                        else if (key2 == "bottom") this.Bottom = value;
+                        if (key2 == "top") this.PositionTop = value;
+                        else if (key2 == "left") this.PositionLeft = value;
+                        else if (key2 == "right") this.PositionRight = value;
+                        else if (key2 == "bottom") this.PositionBottom = value;
                         else throw new FormatException($"Unknown key '{prop.Key}'.");
                     }
                 }
@@ -129,8 +129,8 @@ namespace BoxLayouting
                     }
                     else
                     {
-                        if (key2 == "width") this.Width = value;
-                        else if (key2 == "height") this.Height = value;
+                        if (key2 == "width") this.SizeWidth = value;
+                        else if (key2 == "height") this.SizeHeight = value;
                         else throw new FormatException($"Unknown key '{prop.Key}'.");
                     }
                 }
@@ -144,8 +144,8 @@ namespace BoxLayouting
                     }
                     else
                     {
-                        if (key2 == "horizontal") this.HorizontalCenter = value;
-                        else if (key2 == "vertical") this.VerticalCenter = value;
+                        if (key2 == "horizontal") this.CenterHorizontal = value;
+                        else if (key2 == "vertical") this.CenterVertical = value;
                         else throw new FormatException($"Unknown key '{prop.Key}'.");
                     }
                 }
@@ -207,22 +207,22 @@ namespace BoxLayouting
         {
             this.boxPosition = new BoxPosition(top, right, bottom, left);
         }
-        public string Top
+        public string PositionTop
         {
             get { return this.boxPosition.Top.OriginalValue; }
             set { this.boxPosition.Top = new BoxValue(value); }
         }
-        public string Left
+        public string PositionLeft
         {
             get { return this.boxPosition.Left.OriginalValue; }
             set { this.boxPosition.Left = new BoxValue(value); }
         }
-        public string Right
+        public string PositionRight
         {
             get { return this.boxPosition.Right.OriginalValue; }
             set { this.boxPosition.Right = new BoxValue(value); }
         }
-        public string Bottom
+        public string PositionBottom
         {
             get { return this.boxPosition.Bottom.OriginalValue; }
             set { this.boxPosition.Bottom = new BoxValue(value); }
@@ -241,12 +241,12 @@ namespace BoxLayouting
             this.boxWidth = new BoxValue(width);
             this.boxHeight = new BoxValue(height);
         }
-        public string Width
+        public string SizeWidth
         {
             get { return this.boxWidth.OriginalValue; }
             set { this.boxWidth = new BoxValue(value); }
         }
-        public string Height
+        public string SizeHeight
         {
             get { return this.boxHeight.OriginalValue; }
             set { this.boxHeight = new BoxValue(value); }
@@ -265,12 +265,12 @@ namespace BoxLayouting
             this.boxCenterX = new BoxValue(horizontal);
             this.boxCenterY = new BoxValue(vertical);
         }
-        public string HorizontalCenter
+        public string CenterHorizontal
         {
             get { return this.boxCenterX.OriginalValue; }
             set { this.boxCenterX = new BoxValue(value); }
         }
-        public string VerticalCenter
+        public string CenterVertical
         {
             get { return this.boxCenterY.OriginalValue; }
             set { this.boxCenterY = new BoxValue(value); }
