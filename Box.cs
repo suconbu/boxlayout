@@ -1,12 +1,14 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace BoxLayouting
 {
+    //## 
     class BoxContainer
     {
         public int Width { get; set; }
@@ -28,12 +30,12 @@ namespace BoxLayouting
                 var jboxes = JArray.Parse(definitionJson);
                 foreach (var jbox in jboxes.Cast<JObject>())
                 {
-                    this.rootBox.Add(new Box(jbox, createHandler));
+                    this.rootBox.Add(BoxFactory.From(jbox, createHandler));
                 }
             }
             catch(Exception ex)
             {
-                Console.WriteLine(ex);
+                Trace.TraceError(ex.ToString());
             }
         }
 
@@ -58,12 +60,13 @@ namespace BoxLayouting
         }
     }
 
+    //##
     class Box
     {
         public static Box Empty { get { return empty; } }
         static Box empty = new Box();
 
-        public string Name { get; private set; }
+        public string Name { get; internal set; }
         public object Data { get; set; }
         public Rectangle Bounds { get; private set; }
 
@@ -80,87 +83,12 @@ namespace BoxLayouting
         Box parent;
         readonly Dictionary<string, Box> boxes = new Dictionary<string, Box>();
 
-        internal Box(string name)
+        internal Box() { }
+
+        internal Box(string name = null)
         {
             this.Name = name ?? throw new ArgumentNullException();
         }
-
-        internal Box(JObject jbox, Action<Box, string> createHandler)
-        {
-            foreach (var prop in jbox)
-            {
-                var match = Regex.Match(prop.Key, @"(?<key1>\w+)(-(?<key2>\w+))?");
-                var key = prop.Key;
-                var key1 = match.Groups["key1"].Value ?? string.Empty;
-                var key2 = match.Groups["key2"].Value ?? string.Empty;
-                var value = prop.Value.Type == JTokenType.String ? (string)prop.Value : string.Empty;
-                var values = value.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-                if (key == "name")
-                {
-                    this.Name = value;
-                }
-                else if(key1 == "position")
-                {
-                    if(string.IsNullOrEmpty(key2))
-                    {
-                        if (values.Length == 1) this.SetPosition(values[0]);
-                        else if (values.Length == 2) this.SetPosition(values[0], values[1]);
-                        else if (values.Length == 3) this.SetPosition(values[0], values[1], values[2]);
-                        else if (values.Length == 4) this.SetPosition(values[0], values[1], values[2], values[3]);
-                        else throw new FormatException($"Too meny value '{prop.Value}'.");
-                    }
-                    else
-                    {
-                        if (key2 == "top") this.PositionTop = value;
-                        else if (key2 == "left") this.PositionLeft = value;
-                        else if (key2 == "right") this.PositionRight = value;
-                        else if (key2 == "bottom") this.PositionBottom = value;
-                        else throw new FormatException($"Unknown key '{prop.Key}'.");
-                    }
-                }
-                else if (key1 == "size")
-                {
-                    if (string.IsNullOrEmpty(key2))
-                    {
-                        if (values.Length == 1) this.SetSize(values[0]);
-                        else if (values.Length == 2) this.SetSize(values[0], values[1]);
-                        else throw new FormatException($"Too meny value '{prop.Value}'.");
-                    }
-                    else
-                    {
-                        if (key2 == "width") this.SizeWidth = value;
-                        else if (key2 == "height") this.SizeHeight = value;
-                        else throw new FormatException($"Unknown key '{prop.Key}'.");
-                    }
-                }
-                else if (key1 == "center")
-                {
-                    if (string.IsNullOrEmpty(key2))
-                    {
-                        if (values.Length == 1) this.SetCenter(values[0]);
-                        else if (values.Length == 2) this.SetCenter(values[0], values[1]);
-                        else throw new FormatException($"Too meny value '{prop.Value}'.");
-                    }
-                    else
-                    {
-                        if (key2 == "horizontal") this.CenterHorizontal = value;
-                        else if (key2 == "vertical") this.CenterVertical = value;
-                        else throw new FormatException($"Unknown key '{prop.Key}'.");
-                    }
-                }
-                else if(key == "children")
-                {
-                    foreach (var jboxChild in prop.Value.Values<JObject>())
-                    {
-                        this.Add(new Box(jboxChild, createHandler));
-                    }
-                }
-            }
-            createHandler?.Invoke(this, jbox["data"]?.Value<string>());
-        }
-
-        Box() { }
 
         public bool IsEmtpy() { return this.Name == null; }
 
@@ -209,22 +137,22 @@ namespace BoxLayouting
         }
         public string PositionTop
         {
-            get { return this.boxPosition.Top.OriginalValue; }
+            get { return this.boxPosition.Top.ValueString; }
             set { this.boxPosition.Top = new BoxValue(value); }
         }
         public string PositionLeft
         {
-            get { return this.boxPosition.Left.OriginalValue; }
+            get { return this.boxPosition.Left.ValueString; }
             set { this.boxPosition.Left = new BoxValue(value); }
         }
         public string PositionRight
         {
-            get { return this.boxPosition.Right.OriginalValue; }
+            get { return this.boxPosition.Right.ValueString; }
             set { this.boxPosition.Right = new BoxValue(value); }
         }
         public string PositionBottom
         {
-            get { return this.boxPosition.Bottom.OriginalValue; }
+            get { return this.boxPosition.Bottom.ValueString; }
             set { this.boxPosition.Bottom = new BoxValue(value); }
         }
 
@@ -243,12 +171,12 @@ namespace BoxLayouting
         }
         public string SizeWidth
         {
-            get { return this.boxWidth.OriginalValue; }
+            get { return this.boxWidth.ValueString; }
             set { this.boxWidth = new BoxValue(value); }
         }
         public string SizeHeight
         {
-            get { return this.boxHeight.OriginalValue; }
+            get { return this.boxHeight.ValueString; }
             set { this.boxHeight = new BoxValue(value); }
         }
 
@@ -267,12 +195,12 @@ namespace BoxLayouting
         }
         public string CenterHorizontal
         {
-            get { return this.boxCenterX.OriginalValue; }
+            get { return this.boxCenterX.ValueString; }
             set { this.boxCenterX = new BoxValue(value); }
         }
         public string CenterVertical
         {
-            get { return this.boxCenterY.OriginalValue; }
+            get { return this.boxCenterY.ValueString; }
             set { this.boxCenterY = new BoxValue(value); }
         }
 
@@ -356,24 +284,106 @@ namespace BoxLayouting
         bool IsRoot() { return this.parent == null; }
     }
 
+    //##
+    static class BoxFactory
+    {
+        public static Box From(JObject jbox, Action<Box, string> createHandler)
+        {
+            var box = new Box();
+            foreach (var prop in jbox)
+            {
+                var match = Regex.Match(prop.Key, @"(?<key1>\w+)(-(?<key2>\w+))?");
+                var key = prop.Key;
+                var key1 = match.Groups["key1"].Value ?? string.Empty;
+                var key2 = match.Groups["key2"].Value ?? string.Empty;
+                var value = prop.Value.Type == JTokenType.String ? (string)prop.Value : string.Empty;
+                var values = value.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                if (key == "name")
+                {
+                    box.Name = value;
+                }
+                else if (key1 == "position")
+                {
+                    if (string.IsNullOrEmpty(key2))
+                    {
+                        if (values.Length == 1) box.SetPosition(values[0]);
+                        else if (values.Length == 2) box.SetPosition(values[0], values[1]);
+                        else if (values.Length == 3) box.SetPosition(values[0], values[1], values[2]);
+                        else if (values.Length == 4) box.SetPosition(values[0], values[1], values[2], values[3]);
+                        else throw new FormatException($"Too meny value '{prop.Value}'.");
+                    }
+                    else
+                    {
+                        if (key2 == "top") box.PositionTop = value;
+                        else if (key2 == "left") box.PositionLeft = value;
+                        else if (key2 == "right") box.PositionRight = value;
+                        else if (key2 == "bottom") box.PositionBottom = value;
+                        else throw new FormatException($"Unknown key '{prop.Key}'.");
+                    }
+                }
+                else if (key1 == "size")
+                {
+                    if (string.IsNullOrEmpty(key2))
+                    {
+                        if (values.Length == 1) box.SetSize(values[0]);
+                        else if (values.Length == 2) box.SetSize(values[0], values[1]);
+                        else throw new FormatException($"Too meny value '{prop.Value}'.");
+                    }
+                    else
+                    {
+                        if (key2 == "width") box.SizeWidth = value;
+                        else if (key2 == "height") box.SizeHeight = value;
+                        else throw new FormatException($"Unknown key '{prop.Key}'.");
+                    }
+                }
+                else if (key1 == "center")
+                {
+                    if (string.IsNullOrEmpty(key2))
+                    {
+                        if (values.Length == 1) box.SetCenter(values[0]);
+                        else if (values.Length == 2) box.SetCenter(values[0], values[1]);
+                        else throw new FormatException($"Too meny value '{prop.Value}'.");
+                    }
+                    else
+                    {
+                        if (key2 == "horizontal") box.CenterHorizontal = value;
+                        else if (key2 == "vertical") box.CenterVertical = value;
+                        else throw new FormatException($"Unknown key '{prop.Key}'.");
+                    }
+                }
+                else if (key == "children")
+                {
+                    foreach (var jboxChild in prop.Value.Values<JObject>())
+                    {
+                        box.Add(BoxFactory.From(jboxChild, createHandler));
+                    }
+                }
+            }
+            createHandler?.Invoke(box, jbox["data"]?.Value<string>());
+            return box;
+        }
+    }
+
     // 単位
     enum BoxValueUnit { Null, Pixel, Parcent, Vw, Vh, Vmax, Vmin }
 
+    //##
     struct BoxValue
     {
         public float Length;
         public BoxValueUnit Unit;
-        public string OriginalValue;
+        public string ValueString;
 
-        public BoxValue(string value)
+        public BoxValue(string valueString)
         {
             this.Length = 0.0f;
             this.Unit = BoxValueUnit.Null;
-            this.OriginalValue = value;
+            this.ValueString = valueString;
 
-            if (value != null)
+            if (valueString != null)
             {
-                var match = Regex.Match(value, @"^(?<length>[+-]?\d+(\.\d+)?)(?<unit>(\w+|%))?$");
+                var match = Regex.Match(valueString, @"^(?<length>[+-]?\d+(\.\d+)?)(?<unit>(\w+|%))?$");
                 if (match.Success && float.TryParse(match.Groups["length"].Value, out this.Length))
                 {
                     if (match.Groups["unit"].Success)
@@ -417,10 +427,11 @@ namespace BoxLayouting
 
         public override string ToString()
         {
-            return this.IsNull() ? "null" : this.OriginalValue;
+            return this.IsNull() ? "null" : this.ValueString;
         }
     }
 
+    //##
     struct PositionF
     {
         public float Top;
@@ -437,6 +448,7 @@ namespace BoxLayouting
         }
     }
 
+    //##
     struct BoxPosition
     {
         public BoxValue Top;
