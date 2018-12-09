@@ -5,9 +5,5 @@
 /.vs
 /bin
 /obj
-/test
-/tool/Picker/bin
-/tool/Picker/obj
-/tool/Picker/note.txt
-/log
-/tool
+/packages
+

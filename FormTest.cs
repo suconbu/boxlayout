@@ -30,85 +30,101 @@ namespace BoxLayouting
         {
             base.OnLoad(e);
 
-            try
+            foreach (var type in new[] { "byproperty", "byjson" })
             {
-                var a = view.Add("a");
-                a.Data = new Pen(Color.Red, 1.0f);
-                //a.SetPosition("50px");
-                a.Top = a.Left = a.Right = a.Bottom = "50px";
+                var v = new View();
+                try
+                {
+                    if (type == "byjson")
+                    {
+                        v.AddFrom(File.ReadAllText(@"..\..\test.json"), (box, dataText) =>
+                        {
+                            box.Data = new Pen(Color.FromName(dataText), 1.0f);
+                        });
+                    }
+                    else
+                    {
+                        var a = v.Add("a");
+                        a.Data = new Pen(Color.Red, 1.0f);
+                        //a.SetPosition("50px");
+                        a.Top = a.Left = a.Right = a.Bottom = "50px";
 
-                var aa = a.Add("a.a");
-                aa.Data = new Pen(Color.Orange, 1.0f);
-                //aa.SetSize("50px", "50px");
-                aa.Width = aa.Height = "50px";
+                        var aa = a.Add("a.a");
+                        aa.Data = new Pen(Color.Orange, 1.0f);
+                        //aa.SetSize("50px", "50px");
+                        aa.Width = aa.Height = "50px";
 
-                var ab = a.Add("a.b");
-                ab.Data = new Pen(Color.Orange, 1.0f);
-                //ab.SetSize("50px", "50px");
-                //ab.SetPosition("50px", "50px", null, null);
-                ab.Width = ab.Height = "50px";
-                ab.Top = ab.Right = "50px";
+                        var ab = a.Add("a.b");
+                        ab.Data = new Pen(Color.Orange, 1.0f);
+                        //ab.SetSize("50px", "50px");
+                        //ab.SetPosition("50px", "50px", null, null);
+                        ab.Width = ab.Height = "50px";
+                        ab.Top = ab.Right = "50px";
 
-                var ac = a.Add("a.c");
-                ac.Data = new Pen(Color.Orange, 1.0f);
-                //ac.SetSize("50px", "50px");
-                //ac.SetPosition(null, null, "50px", "50px");
-                ac.Width = ac.Height = "50px";
-                ac.Bottom = ac.Left = "50px";
+                        var ac = a.Add("a.c");
+                        ac.Data = new Pen(Color.Orange, 1.0f);
+                        //ac.SetSize("50px", "50px");
+                        //ac.SetPosition(null, null, "50px", "50px");
+                        ac.Width = ac.Height = "50px";
+                        ac.Bottom = ac.Left = "50px";
 
-                var ad = a.Add("a.d");
-                ad.Data = new Pen(Color.Orange, 1.0f);
-                //ad.SetSize("50px", "50px");
-                //// Size指定ありかつPosition両端指定の場合はLeft/Topの方を採用
-                //ad.SetPosition("100px", "100px", "100px", "100px");
-                ad.Width = ad.Height = "50px";
-                ad.Top = ad.Left = ad.Right = ad.Bottom = "100px";
+                        var ad = a.Add("a.d");
+                        ad.Data = new Pen(Color.Orange, 1.0f);
+                        //ad.SetSize("50px", "50px");
+                        //// Size指定ありかつPosition両端指定の場合はLeft/Topの方を採用
+                        //ad.SetPosition("100px", "100px", "100px", "100px");
+                        ad.Width = ad.Height = "50px";
+                        ad.Top = ad.Left = ad.Right = ad.Bottom = "100px";
 
-                var ae = a.Add("a.e");
-                ae.Data = new Pen(Color.Orange, 1.0f);
-                //ae.SetSize("50px", "50px");
-                //// %は親要素のエリアに対する割合
-                //ae.SetCenter("50%", "50%");
-                //// Center指定ありの場合はPositionはすべて無視
-                //ae.SetPosition("100px", "100px", "100px", "100px");
-                ae.Width = ae.Height = "50px";
-                ae.HorizontalCenter = ae.VerticalCenter = "50%";
-                ae.Top = ae.Left = ae.Right = ae.Bottom = "100px";
+                        var ae = a.Add("a.e");
+                        ae.Data = new Pen(Color.Orange, 1.0f);
+                        //ae.SetSize("50px", "50px");
+                        //// %は親要素のエリアに対する割合
+                        //ae.SetCenter("50%", "50%");
+                        //// Center指定ありの場合はPositionはすべて無視
+                        //ae.SetPosition("100px", "100px", "100px", "100px");
+                        ae.Width = ae.Height = "50px";
+                        ae.HorizontalCenter = ae.VerticalCenter = "50%";
+                        ae.Top = ae.Left = ae.Right = ae.Bottom = "100px";
 
-                var b = view.Add("b");
-                b.Data = new Pen(Color.Blue, 1.0f);
-                //b.SetPosition("20vh", "20vw");
-                b.Top = b.Bottom = "20vh";
-                b.Left = b.Right = "20vw";
+                        var b = v.Add("b");
+                        b.Data = new Pen(Color.Blue, 1.0f);
+                        //b.SetPosition("20vh", "20vw");
+                        b.Top = b.Bottom = "20vh";
+                        b.Left = b.Right = "20vw";
 
-                var ba = b.Add("b.a");
-                ba.Data = new Pen(Color.RoyalBlue, 1.0f);
-                //ba.SetSize("100px", "100px");
-                //ba.SetPosition("-50px", null, null, "+50px");
-                ba.Width = ba.Height = "100px";
-                ba.Top = "-50px";
-                ba.Left = "+50px";
+                        var ba = b.Add("b.a");
+                        ba.Data = new Pen(Color.RoyalBlue, 1.0f);
+                        //ba.SetSize("100px", "100px");
+                        //ba.SetPosition("-50px", null, null, "+50px");
+                        ba.Width = ba.Height = "100px";
+                        ba.Top = "-50px";
+                        ba.Left = "+50px";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
+
+                v.Width = this.ClientRectangle.Width;
+                v.Height = this.ClientRectangle.Height;
+                var sw = Stopwatch.StartNew();
+                for (var i = 0; i < 1000; i++)
+                {
+                    v.Recalculate();
+                }
+                Console.WriteLine($"Recalculate: {sw.ElapsedMilliseconds / 1000.0f}ms");
+
+                var sb = new StringBuilder();
+                v.Traverse(box =>
+                {
+                    sb.AppendLine($"{box.Name}:{box.Bounds.ToString()}");
+                });
+                File.WriteAllText($"test_bounds_{type}_{DateTime.Now.Ticks}.txt", sb.ToString());
+
+                this.view = v;
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-            }
-
-            this.view.Width = this.ClientRectangle.Width;
-            this.view.Height = this.ClientRectangle.Height;
-            var sw = Stopwatch.StartNew();
-            for (var i = 0; i < 1000; i++)
-            {
-                this.view.Recalculate();
-            }
-            Console.WriteLine($"Recalculate: {sw.ElapsedMilliseconds / 1000.0f}ms");
-
-            var sb = new StringBuilder();
-            view.Traverse(box =>
-            {
-                sb.AppendLine($"{box.Name}:{box.Bounds.ToString()}");
-            });
-            File.WriteAllText($"test_bounds_{DateTime.Now.Ticks}.txt", sb.ToString());
 
             this.Invalidate();
         }

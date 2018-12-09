@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace BoxLayouting
 {
@@ -22,6 +19,22 @@ namespace BoxLayouting
         {
             this.Width = width;
             this.Height = height;
+        }
+
+        public void AddFrom(string definitionJson, Action<Box, string> createHandler = null)
+        {
+            try
+            {
+                var jboxes = JArray.Parse(definitionJson);
+                foreach (var jbox in jboxes.Cast<JObject>())
+                {
+                    this.rootBox.Add(new Box(jbox, createHandler));
+                }
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
         }
 
         public Box Add(string name)
@@ -72,6 +85,81 @@ namespace BoxLayouting
             this.Name = name ?? throw new ArgumentNullException();
         }
 
+        internal Box(JObject jbox, Action<Box, string> createHandler)
+        {
+            foreach (var prop in jbox)
+            {
+                var match = Regex.Match(prop.Key, @"(?<key1>\w+)(-(?<key2>\w+))?");
+                var key = prop.Key;
+                var key1 = match.Groups["key1"].Value ?? string.Empty;
+                var key2 = match.Groups["key2"].Value ?? string.Empty;
+                var value = prop.Value.Type == JTokenType.String ? (string)prop.Value : string.Empty;
+                var values = value.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                if (key == "name")
+                {
+                    this.Name = value;
+                }
+                else if(key1 == "position")
+                {
+                    if(string.IsNullOrEmpty(key2))
+                    {
+                        if (values.Length == 1) this.SetPosition(values[0]);
+                        else if (values.Length == 2) this.SetPosition(values[0], values[1]);
+                        else if (values.Length == 3) this.SetPosition(values[0], values[1], values[2]);
+                        else if (values.Length == 4) this.SetPosition(values[0], values[1], values[2], values[3]);
+                        else throw new FormatException($"Too meny value '{prop.Value}'.");
+                    }
+                    else
+                    {
+                        if (key2 == "top") this.Top = value;
+                        else if (key2 == "left") this.Left = value;
+                        else if (key2 == "right") this.Right = value;
+                        else if (key2 == "bottom") this.Bottom = value;
+                        else throw new FormatException($"Unknown key '{prop.Key}'.");
+                    }
+                }
+                else if (key1 == "size")
+                {
+                    if (string.IsNullOrEmpty(key2))
+                    {
+                        if (values.Length == 1) this.SetSize(values[0]);
+                        else if (values.Length == 2) this.SetSize(values[0], values[1]);
+                        else throw new FormatException($"Too meny value '{prop.Value}'.");
+                    }
+                    else
+                    {
+                        if (key2 == "width") this.Width = value;
+                        else if (key2 == "height") this.Height = value;
+                        else throw new FormatException($"Unknown key '{prop.Key}'.");
+                    }
+                }
+                else if (key1 == "center")
+                {
+                    if (string.IsNullOrEmpty(key2))
+                    {
+                        if (values.Length == 1) this.SetCenter(values[0]);
+                        else if (values.Length == 2) this.SetCenter(values[0], values[1]);
+                        else throw new FormatException($"Too meny value '{prop.Value}'.");
+                    }
+                    else
+                    {
+                        if (key2 == "horizontal") this.HorizontalCenter = value;
+                        else if (key2 == "vertical") this.VerticalCenter = value;
+                        else throw new FormatException($"Unknown key '{prop.Key}'.");
+                    }
+                }
+                else if(key == "children")
+                {
+                    foreach (var jboxChild in prop.Value.Values<JObject>())
+                    {
+                        this.Add(new Box(jboxChild, createHandler));
+                    }
+                }
+            }
+            createHandler?.Invoke(this, jbox["data"]?.Value<string>());
+        }
+
         Box() { }
 
         public bool IsEmtpy() { return this.Name == null; }
@@ -80,6 +168,13 @@ namespace BoxLayouting
         {
             if (this.IsEmtpy()) return Empty;
             var box = new Box(name);
+            box.parent = this;
+            this.boxes.Add(box.Name, box);
+            return box;
+        }
+
+        public Box Add(Box box)
+        {
             box.parent = this;
             this.boxes.Add(box.Name, box);
             return box;
@@ -136,6 +231,11 @@ namespace BoxLayouting
         // Size
         // Boxの幅高さを指定
         // Size指定ありかつPositionで両端指定(LeftとRight/TopとBottom)されてた場合はLeft/TopとSizeを採用
+        public void SetSize(string widthHeight)
+        {
+            this.boxWidth = new BoxValue(widthHeight);
+            this.boxHeight = new BoxValue(widthHeight);
+        }
         public void SetSize(string width, string height)
         {
             this.boxWidth = new BoxValue(width);
@@ -155,6 +255,11 @@ namespace BoxLayouting
         // Center
         // Boxの中心を親要素のどこに持ってくるかを指定
         // Centerを指定したらPositionは無視
+        public void SetCenter(string horizontalVertical)
+        {
+            this.boxCenterX = new BoxValue(horizontalVertical);
+            this.boxCenterY = new BoxValue(horizontalVertical);
+        }
         public void SetCenter(string horizontal, string vertical)
         {
             this.boxCenterX = new BoxValue(horizontal);
@@ -339,7 +444,7 @@ namespace BoxLayouting
         public BoxValue Right;
         public BoxValue Bottom;
 
-        public BoxPosition(string left, string top, string right, string bottom)
+        public BoxPosition(string top, string right, string bottom, string left)
         {
             this.Top = new BoxValue(top);
             this.Left = new BoxValue(left);
