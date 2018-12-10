@@ -26,7 +26,7 @@ namespace BoxLayouting
             base.OnLoad(e);
 
             string previous = null;
-            foreach (var type in new[] { "byproperty", "byjson" })
+            foreach (var type in new[] { "byproperty", "byjson", "byxml" })
             {
                 var swCreation = Stopwatch.StartNew();
                 var container = new BoxContainer();
@@ -34,7 +34,14 @@ namespace BoxLayouting
                 {
                     if (type == "byjson")
                     {
-                        container.AddFrom(File.ReadAllText(@"..\..\test.json"), (box, dataText) =>
+                        container.AddFromJson(File.ReadAllText(@"..\..\test.json"), (box, dataText) =>
+                        {
+                            box.Data = new Pen(Color.FromName(dataText), 1.0f);
+                        });
+                    }
+                    else if(type == "byxml")
+                    {
+                        container.AddFromXml(File.ReadAllText(@"..\..\test.xml"), (box, dataText) =>
                         {
                             box.Data = new Pen(Color.FromName(dataText), 1.0f);
                         });

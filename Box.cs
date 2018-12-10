@@ -3,8 +3,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Xml;
+using System.Xml.Serialization;
 
 namespace BoxLayouting
 {
@@ -23,19 +26,22 @@ namespace BoxLayouting
             this.Height = height;
         }
 
-        public void AddFrom(string definitionJson, Action<Box, string> createHandler = null)
+        public void AddFromJson(string definitionJson, Action<Box, string> createHandler = null)
         {
-            try
+            var jboxes = JArray.Parse(definitionJson);
+            BoxFactory.AddFromJson(this.rootBox, jboxes, createHandler);
+        }
+
+        public void AddFromXml(string definitionXml, Action<Box, string> createHandler = null)
+        {
+            var setting = new XmlReaderSettings();
+            setting.IgnoreComments = true;
+            setting.IgnoreWhitespace = true;
+            using (var sr = new StringReader(definitionXml))
+            using (var xr = XmlReader.Create(sr, setting))
             {
-                var jboxes = JArray.Parse(definitionJson);
-                foreach (var jbox in jboxes.Cast<JObject>())
-                {
-                    this.rootBox.Add(BoxFactory.From(jbox, createHandler));
-                }
-            }
-            catch(Exception ex)
-            {
-                Trace.TraceError(ex.ToString());
+
+                BoxFactory.AddFromXml(this.rootBox, xr, createHandler);
             }
         }
 
@@ -287,82 +293,153 @@ namespace BoxLayouting
     //##
     static class BoxFactory
     {
-        public static Box From(JObject jbox, Action<Box, string> createHandler)
+        public static void AddFromJson(Box parentBox, JToken jboxes, Action<Box, string> createHandler)
         {
-            var box = new Box();
-            foreach (var prop in jbox)
+            foreach (var jbox in jboxes.Values<JObject>())
             {
-                var match = Regex.Match(prop.Key, @"(?<key1>\w+)(-(?<key2>\w+))?");
-                var key = prop.Key;
-                var key1 = match.Groups["key1"].Value ?? string.Empty;
-                var key2 = match.Groups["key2"].Value ?? string.Empty;
-                var value = prop.Value.Type == JTokenType.String ? (string)prop.Value : string.Empty;
-                var values = value.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var box = new Box();
+                string data = null;
+                foreach (var prop in jbox)
+                {
+                    if (prop.Key == "children")
+                    {
+                        AddFromJson(box, prop.Value, createHandler);
+                    }
+                    else if (prop.Key == "data")
+                    {
+                        data = prop.Value.Value<string>();
+                    }
+                    else
+                    {
+                        SetProperty(box, prop.Key, prop.Value.Value<string>());
+                    }
+                }
+                createHandler?.Invoke(box, data);
+                parentBox.Add(box);
+            }
+        }
 
-                if (key == "name")
+        public static void AddFromXml(Box parentBox, XmlReader reader, Action<Box, string> createHandler)
+        {
+            while (reader.Read())
+            {
+                if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "box")
                 {
-                    box.Name = value;
+                    var box = new Box();
+                    string data = null;
+                    while (reader.MoveToNextAttribute())
+                    {
+                        var key = reader.LocalName;
+                        var value = reader.Value;
+                        if (key == "data")
+                        {
+                            data = value;
+                        }
+                        else
+                        {
+                            SetProperty(box, key, value);
+                        }
+                    }
+                    reader.MoveToElement();
+                    if (!reader.IsEmptyElement)
+                    {
+                        AddFromXml(box, reader, createHandler);
+                    }
+                    createHandler?.Invoke(box, data);
+                    parentBox.Add(box);
                 }
-                else if (key1 == "position")
+                else if (reader.NodeType == XmlNodeType.EndElement)
                 {
-                    if (string.IsNullOrEmpty(key2))
-                    {
-                        if (values.Length == 1) box.SetPosition(values[0]);
-                        else if (values.Length == 2) box.SetPosition(values[0], values[1]);
-                        else if (values.Length == 3) box.SetPosition(values[0], values[1], values[2]);
-                        else if (values.Length == 4) box.SetPosition(values[0], values[1], values[2], values[3]);
-                        else throw new FormatException($"Too meny value '{prop.Value}'.");
-                    }
-                    else
-                    {
-                        if (key2 == "top") box.PositionTop = value;
-                        else if (key2 == "left") box.PositionLeft = value;
-                        else if (key2 == "right") box.PositionRight = value;
-                        else if (key2 == "bottom") box.PositionBottom = value;
-                        else throw new FormatException($"Unknown key '{prop.Key}'.");
-                    }
-                }
-                else if (key1 == "size")
-                {
-                    if (string.IsNullOrEmpty(key2))
-                    {
-                        if (values.Length == 1) box.SetSize(values[0]);
-                        else if (values.Length == 2) box.SetSize(values[0], values[1]);
-                        else throw new FormatException($"Too meny value '{prop.Value}'.");
-                    }
-                    else
-                    {
-                        if (key2 == "width") box.SizeWidth = value;
-                        else if (key2 == "height") box.SizeHeight = value;
-                        else throw new FormatException($"Unknown key '{prop.Key}'.");
-                    }
-                }
-                else if (key1 == "center")
-                {
-                    if (string.IsNullOrEmpty(key2))
-                    {
-                        if (values.Length == 1) box.SetCenter(values[0]);
-                        else if (values.Length == 2) box.SetCenter(values[0], values[1]);
-                        else throw new FormatException($"Too meny value '{prop.Value}'.");
-                    }
-                    else
-                    {
-                        if (key2 == "horizontal") box.CenterHorizontal = value;
-                        else if (key2 == "vertical") box.CenterVertical = value;
-                        else throw new FormatException($"Unknown key '{prop.Key}'.");
-                    }
-                }
-                else if (key == "children")
-                {
-                    foreach (var jboxChild in prop.Value.Values<JObject>())
-                    {
-                        box.Add(BoxFactory.From(jboxChild, createHandler));
-                    }
+                    break;
                 }
             }
-            createHandler?.Invoke(box, jbox["data"]?.Value<string>());
-            return box;
         }
+
+        static void SetProperty(Box box, string key, string value)
+        {
+            var keys = key.Split(new[] { '-' }, StringSplitOptions.RemoveEmptyEntries);
+            var values = value.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (key == "name")
+            {
+                box.Name = value;
+            }
+            else if (keys[0] == "position")
+            {
+                if (key.Length == keys[0].Length)
+                {
+                    if (values.Length == 1) box.SetPosition(values[0]);
+                    else if (values.Length == 2) box.SetPosition(values[0], values[1]);
+                    else if (values.Length == 3) box.SetPosition(values[0], values[1], values[2]);
+                    else if (values.Length == 4) box.SetPosition(values[0], values[1], values[2], values[3]);
+                    else throw new FormatException($"Too meny value '{value}'.");
+                }
+                else
+                {
+                    if (keys[1] == "top") box.PositionTop = value;
+                    else if (keys[1] == "left") box.PositionLeft = value;
+                    else if (keys[1] == "right") box.PositionRight = value;
+                    else if (keys[1] == "bottom") box.PositionBottom = value;
+                    else throw new FormatException($"Unknown key '{key}'.");
+                }
+            }
+            else if (keys[0] == "size")
+            {
+                if (key.Length == keys[0].Length)
+                {
+                    if (values.Length == 1) box.SetSize(values[0]);
+                    else if (values.Length == 2) box.SetSize(values[0], values[1]);
+                    else throw new FormatException($"Too meny value '{value}'.");
+                }
+                else
+                {
+                    if (keys[1] == "width") box.SizeWidth = value;
+                    else if (keys[1] == "height") box.SizeHeight = value;
+                    else throw new FormatException($"Unknown key '{key}'.");
+                }
+            }
+            else if (keys[0] == "center")
+            {
+                if (key.Length == keys[0].Length)
+                {
+                    if (values.Length == 1) box.SetCenter(values[0]);
+                    else if (values.Length == 2) box.SetCenter(values[0], values[1]);
+                    else throw new FormatException($"Too meny value '{value}'.");
+                }
+                else
+                {
+                    if (keys[1] == "horizontal") box.CenterHorizontal = value;
+                    else if (keys[1] == "vertical") box.CenterVertical = value;
+                    else throw new FormatException($"Unknown key '{key}'.");
+                }
+            }
+        }
+        //public class BoxSchema
+        //{
+        //    [XmlAttribute("name")]
+        //    public string Name { get; set; }
+
+        //    [XmlElement("data")]
+        //    public string Data { get; set; }
+
+        //    [XmlElement("position")]
+        //    public string Position { get; set; }
+        //    [XmlElement("positionTop")]
+        //    public string Position { get; set; }
+        //    [XmlElement("positionRight")]
+        //    public string Position { get; set; }
+        //    [XmlElement("position")]
+        //    public string Position { get; set; }
+        //    [XmlElement("position")]
+        //    public string Position { get; set; }
+
+        //    [XmlElement("size")]
+        //    public string Size { get; set; }
+        //    [XmlElement("size-width")]
+        //    public string SizeWidth { get; set; }
+        //    [XmlElement("size-height")]
+        //    public string SizeHeight { get; set; }
+        //}
     }
 
     // 単位
