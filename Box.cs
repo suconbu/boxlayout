@@ -1,18 +1,15 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml;
-using System.Xml.Serialization;
 
-namespace BoxLayouting
+namespace Suconbu.BoxLayouting
 {
     //## 
-    class BoxContainer
+    public class BoxContainer
     {
         public int Width { get; set; }
         public int Height { get; set; }
@@ -26,13 +23,31 @@ namespace BoxLayouting
             this.Height = height;
         }
 
-        public void AddFromJson(string definitionJson, Action<Box, string> createHandler = null)
+        public IEnumerable<Box> AddFromFile(string path, Action<Box, string> createHandler = null)
+        {
+            var ext = Path.GetExtension(path).ToLower();
+            if(ext == ".json")
+            {
+                return this.AddFromJson(File.ReadAllText(path), createHandler);
+            }
+            else if(ext == ".xml")
+            {
+                return this.AddFromXml(File.ReadAllText(path), createHandler);
+            }
+            else
+            {
+                throw new NotSupportedException($"Not supported extension '{ext}'.");
+            }
+        }
+
+        public IEnumerable<Box> AddFromJson(string definitionJson, Action<Box, string> createHandler = null)
         {
             var jboxes = JArray.Parse(definitionJson);
             BoxFactory.AddFromJson(this.rootBox, jboxes, createHandler);
+            return this.rootBox.Children;
         }
 
-        public void AddFromXml(string definitionXml, Action<Box, string> createHandler = null)
+        public IEnumerable<Box> AddFromXml(string definitionXml, Action<Box, string> createHandler = null)
         {
             var setting = new XmlReaderSettings();
             setting.IgnoreComments = true;
@@ -40,9 +55,9 @@ namespace BoxLayouting
             using (var sr = new StringReader(definitionXml))
             using (var xr = XmlReader.Create(sr, setting))
             {
-
                 BoxFactory.AddFromXml(this.rootBox, xr, createHandler);
             }
+            return this.rootBox.Children;
         }
 
         public Box Add(string name)
@@ -55,6 +70,11 @@ namespace BoxLayouting
             this.rootBox.Remove(name);
         }
 
+        public void Clear()
+        {
+            this.rootBox.Clear();
+        }
+
         public void Recalculate()
         {
             this.rootBox.RecalculateBoundsRecursive(new Size(this.Width, this.Height));
@@ -64,10 +84,136 @@ namespace BoxLayouting
         {
             this.rootBox.TraverseUp(handler);
         }
+
+        //##
+        static class BoxFactory
+        {
+            public static void AddFromJson(Box parentBox, JToken jboxes, Action<Box, string> createHandler)
+            {
+                foreach (var jbox in jboxes.Values<JObject>())
+                {
+                    var box = new Box();
+                    string data = null;
+                    foreach (var prop in jbox)
+                    {
+                        if (prop.Key == "children")
+                        {
+                            AddFromJson(box, prop.Value, createHandler);
+                        }
+                        else if (prop.Key == "data")
+                        {
+                            data = prop.Value.Value<string>();
+                        }
+                        else
+                        {
+                            SetProperty(box, prop.Key, prop.Value.Value<string>());
+                        }
+                    }
+                    createHandler?.Invoke(box, data);
+                    parentBox.Add(box);
+                }
+            }
+
+            public static void AddFromXml(Box parentBox, XmlReader reader, Action<Box, string> createHandler)
+            {
+                while (reader.Read())
+                {
+                    if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "box")
+                    {
+                        var box = new Box();
+                        string data = null;
+                        while (reader.MoveToNextAttribute())
+                        {
+                            var key = reader.LocalName;
+                            var value = reader.Value;
+                            if (key == "data")
+                            {
+                                data = value;
+                            }
+                            else
+                            {
+                                SetProperty(box, key, value);
+                            }
+                        }
+                        reader.MoveToElement();
+                        if (!reader.IsEmptyElement)
+                        {
+                            AddFromXml(box, reader, createHandler);
+                        }
+                        createHandler?.Invoke(box, data);
+                        parentBox.Add(box);
+                    }
+                    else if (reader.NodeType == XmlNodeType.EndElement)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            static void SetProperty(Box box, string key, string value)
+            {
+                var keys = key.Split(new[] { '-' }, StringSplitOptions.RemoveEmptyEntries);
+                var values = value.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                if (key == "name")
+                {
+                    box.Name = value;
+                }
+                else if (keys[0] == "position")
+                {
+                    if (key.Length == keys[0].Length)
+                    {
+                        if (values.Length == 1) box.SetPosition(values[0]);
+                        else if (values.Length == 2) box.SetPosition(values[0], values[1]);
+                        else if (values.Length == 3) box.SetPosition(values[0], values[1], values[2]);
+                        else if (values.Length == 4) box.SetPosition(values[0], values[1], values[2], values[3]);
+                        else throw new FormatException($"Too meny value '{value}'.");
+                    }
+                    else
+                    {
+                        if (keys[1] == "top") box.PositionTop = value;
+                        else if (keys[1] == "left") box.PositionLeft = value;
+                        else if (keys[1] == "right") box.PositionRight = value;
+                        else if (keys[1] == "bottom") box.PositionBottom = value;
+                        else throw new FormatException($"Unknown key '{key}'.");
+                    }
+                }
+                else if (keys[0] == "size")
+                {
+                    if (key.Length == keys[0].Length)
+                    {
+                        if (values.Length == 1) box.SetSize(values[0]);
+                        else if (values.Length == 2) box.SetSize(values[0], values[1]);
+                        else throw new FormatException($"Too meny value '{value}'.");
+                    }
+                    else
+                    {
+                        if (keys[1] == "width") box.SizeWidth = value;
+                        else if (keys[1] == "height") box.SizeHeight = value;
+                        else throw new FormatException($"Unknown key '{key}'.");
+                    }
+                }
+                else if (keys[0] == "center")
+                {
+                    if (key.Length == keys[0].Length)
+                    {
+                        if (values.Length == 1) box.SetCenter(values[0]);
+                        else if (values.Length == 2) box.SetCenter(values[0], values[1]);
+                        else throw new FormatException($"Too meny value '{value}'.");
+                    }
+                    else
+                    {
+                        if (keys[1] == "horizontal") box.CenterHorizontal = value;
+                        else if (keys[1] == "vertical") box.CenterVertical = value;
+                        else throw new FormatException($"Unknown key '{key}'.");
+                    }
+                }
+            }
+        }
     }
 
     //##
-    class Box
+    public class Box
     {
         public static Box Empty { get { return empty; } }
         static Box empty = new Box();
@@ -77,6 +223,7 @@ namespace BoxLayouting
         public Rectangle Bounds { get; private set; }
 
         public Box this[string name] { get { return this.boxes[name]; } }
+        public IEnumerable<Box> Children { get { return this.boxes.Values; } }
 
         BoxPosition boxPosition;
 
@@ -121,6 +268,11 @@ namespace BoxLayouting
                 box.parent = null;
                 this.boxes.Remove(name);
             }
+        }
+
+        public void Clear()
+        {
+            this.boxes.Clear();
         }
 
         // Position
@@ -288,271 +440,119 @@ namespace BoxLayouting
         }
 
         bool IsRoot() { return this.parent == null; }
-    }
 
-    //##
-    static class BoxFactory
-    {
-        public static void AddFromJson(Box parentBox, JToken jboxes, Action<Box, string> createHandler)
-        {
-            foreach (var jbox in jboxes.Values<JObject>())
-            {
-                var box = new Box();
-                string data = null;
-                foreach (var prop in jbox)
-                {
-                    if (prop.Key == "children")
-                    {
-                        AddFromJson(box, prop.Value, createHandler);
-                    }
-                    else if (prop.Key == "data")
-                    {
-                        data = prop.Value.Value<string>();
-                    }
-                    else
-                    {
-                        SetProperty(box, prop.Key, prop.Value.Value<string>());
-                    }
-                }
-                createHandler?.Invoke(box, data);
-                parentBox.Add(box);
-            }
-        }
+        // 単位
+        enum BoxValueUnit { Null, Pixel, Parcent, Vw, Vh, Vmax, Vmin }
 
-        public static void AddFromXml(Box parentBox, XmlReader reader, Action<Box, string> createHandler)
+        //##
+        struct BoxValue
         {
-            while (reader.Read())
+            public float Length;
+            public BoxValueUnit Unit;
+            public string ValueString;
+
+            public BoxValue(string valueString)
             {
-                if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "box")
+                this.Length = 0.0f;
+                this.Unit = BoxValueUnit.Null;
+                this.ValueString = valueString;
+
+                if (valueString != null)
                 {
-                    var box = new Box();
-                    string data = null;
-                    while (reader.MoveToNextAttribute())
+                    var match = Regex.Match(valueString, @"^(?<length>[+-]?\d+(\.\d+)?)(?<unit>(\w+|%))?$");
+                    if (match.Success && float.TryParse(match.Groups["length"].Value, out this.Length))
                     {
-                        var key = reader.LocalName;
-                        var value = reader.Value;
-                        if (key == "data")
+                        if (match.Groups["unit"].Success)
                         {
-                            data = value;
+                            var unit = match.Groups["unit"].Value;
+                            if (unit == "px") this.Unit = BoxValueUnit.Pixel;
+                            else if (unit == "%") this.Unit = BoxValueUnit.Parcent;
+                            else if (unit == "vw") this.Unit = BoxValueUnit.Vw;
+                            else if (unit == "vh") this.Unit = BoxValueUnit.Vh;
+                            else if (unit == "vmax") this.Unit = BoxValueUnit.Vmax;
+                            else if (unit == "vmin") this.Unit = BoxValueUnit.Vmin;
+                            else throw new ArgumentException($"Unknown value unit '{unit}'.");
                         }
                         else
                         {
-                            SetProperty(box, key, value);
+                            // 0だけは単位省略が許される
+                            this.Unit = (this.Length == 0.0f) ? BoxValueUnit.Pixel : throw new ArgumentException("Unit of value is missing.");
                         }
-                    }
-                    reader.MoveToElement();
-                    if (!reader.IsEmptyElement)
-                    {
-                        AddFromXml(box, reader, createHandler);
-                    }
-                    createHandler?.Invoke(box, data);
-                    parentBox.Add(box);
-                }
-                else if (reader.NodeType == XmlNodeType.EndElement)
-                {
-                    break;
-                }
-            }
-        }
-
-        static void SetProperty(Box box, string key, string value)
-        {
-            var keys = key.Split(new[] { '-' }, StringSplitOptions.RemoveEmptyEntries);
-            var values = value.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-            if (key == "name")
-            {
-                box.Name = value;
-            }
-            else if (keys[0] == "position")
-            {
-                if (key.Length == keys[0].Length)
-                {
-                    if (values.Length == 1) box.SetPosition(values[0]);
-                    else if (values.Length == 2) box.SetPosition(values[0], values[1]);
-                    else if (values.Length == 3) box.SetPosition(values[0], values[1], values[2]);
-                    else if (values.Length == 4) box.SetPosition(values[0], values[1], values[2], values[3]);
-                    else throw new FormatException($"Too meny value '{value}'.");
-                }
-                else
-                {
-                    if (keys[1] == "top") box.PositionTop = value;
-                    else if (keys[1] == "left") box.PositionLeft = value;
-                    else if (keys[1] == "right") box.PositionRight = value;
-                    else if (keys[1] == "bottom") box.PositionBottom = value;
-                    else throw new FormatException($"Unknown key '{key}'.");
-                }
-            }
-            else if (keys[0] == "size")
-            {
-                if (key.Length == keys[0].Length)
-                {
-                    if (values.Length == 1) box.SetSize(values[0]);
-                    else if (values.Length == 2) box.SetSize(values[0], values[1]);
-                    else throw new FormatException($"Too meny value '{value}'.");
-                }
-                else
-                {
-                    if (keys[1] == "width") box.SizeWidth = value;
-                    else if (keys[1] == "height") box.SizeHeight = value;
-                    else throw new FormatException($"Unknown key '{key}'.");
-                }
-            }
-            else if (keys[0] == "center")
-            {
-                if (key.Length == keys[0].Length)
-                {
-                    if (values.Length == 1) box.SetCenter(values[0]);
-                    else if (values.Length == 2) box.SetCenter(values[0], values[1]);
-                    else throw new FormatException($"Too meny value '{value}'.");
-                }
-                else
-                {
-                    if (keys[1] == "horizontal") box.CenterHorizontal = value;
-                    else if (keys[1] == "vertical") box.CenterVertical = value;
-                    else throw new FormatException($"Unknown key '{key}'.");
-                }
-            }
-        }
-        //public class BoxSchema
-        //{
-        //    [XmlAttribute("name")]
-        //    public string Name { get; set; }
-
-        //    [XmlElement("data")]
-        //    public string Data { get; set; }
-
-        //    [XmlElement("position")]
-        //    public string Position { get; set; }
-        //    [XmlElement("positionTop")]
-        //    public string Position { get; set; }
-        //    [XmlElement("positionRight")]
-        //    public string Position { get; set; }
-        //    [XmlElement("position")]
-        //    public string Position { get; set; }
-        //    [XmlElement("position")]
-        //    public string Position { get; set; }
-
-        //    [XmlElement("size")]
-        //    public string Size { get; set; }
-        //    [XmlElement("size-width")]
-        //    public string SizeWidth { get; set; }
-        //    [XmlElement("size-height")]
-        //    public string SizeHeight { get; set; }
-        //}
-    }
-
-    // 単位
-    enum BoxValueUnit { Null, Pixel, Parcent, Vw, Vh, Vmax, Vmin }
-
-    //##
-    struct BoxValue
-    {
-        public float Length;
-        public BoxValueUnit Unit;
-        public string ValueString;
-
-        public BoxValue(string valueString)
-        {
-            this.Length = 0.0f;
-            this.Unit = BoxValueUnit.Null;
-            this.ValueString = valueString;
-
-            if (valueString != null)
-            {
-                var match = Regex.Match(valueString, @"^(?<length>[+-]?\d+(\.\d+)?)(?<unit>(\w+|%))?$");
-                if (match.Success && float.TryParse(match.Groups["length"].Value, out this.Length))
-                {
-                    if (match.Groups["unit"].Success)
-                    {
-                        var unit = match.Groups["unit"].Value;
-                        if (unit == "px") this.Unit = BoxValueUnit.Pixel;
-                        else if (unit == "%") this.Unit = BoxValueUnit.Parcent;
-                        else if (unit == "vw") this.Unit = BoxValueUnit.Vw;
-                        else if (unit == "vh") this.Unit = BoxValueUnit.Vh;
-                        else if (unit == "vmax") this.Unit = BoxValueUnit.Vmax;
-                        else if (unit == "vmin") this.Unit = BoxValueUnit.Vmin;
-                        else throw new ArgumentException($"Unknown value unit '{unit}'.");
                     }
                     else
                     {
-                        // 0だけは単位省略が許される
-                        this.Unit = (this.Length == 0.0f) ? BoxValueUnit.Pixel : throw new ArgumentException("Unit of value is missing.");
+                        throw new ArgumentException("Invalid value format.");
                     }
                 }
-                else
-                {
-                    throw new ArgumentException("Invalid value format.");
-                }
+            }
+
+            public bool IsNull() { return this.Unit == BoxValueUnit.Null; }
+
+            public float GetCalculated(Size viewSize, float baseLength)
+            {
+                float value;
+                if (this.Unit == BoxValueUnit.Pixel) value = this.Length;
+                else if (this.Unit == BoxValueUnit.Vw) value = this.Length / 100.0f * viewSize.Width;
+                else if (this.Unit == BoxValueUnit.Vh) value = this.Length / 100.0f * viewSize.Height;
+                else if (this.Unit == BoxValueUnit.Vmax) value = this.Length / 100.0f * Math.Max(viewSize.Width, viewSize.Height);
+                else if (this.Unit == BoxValueUnit.Vmin) value = this.Length / 100.0f * Math.Min(viewSize.Width, viewSize.Height);
+                else if (this.Unit == BoxValueUnit.Parcent) value = this.Length / 100.0f * baseLength;
+                else value = float.NaN;
+                return value;
+            }
+
+            public override string ToString()
+            {
+                return this.IsNull() ? "null" : this.ValueString;
             }
         }
 
-        public bool IsNull() { return this.Unit == BoxValueUnit.Null; }
-
-        public float GetCalculated(Size viewSize, float baseLength)
+        //##
+        struct PositionF
         {
-            float value;
-            if (this.Unit == BoxValueUnit.Pixel) value = this.Length;
-            else if (this.Unit == BoxValueUnit.Vw) value = this.Length / 100.0f * viewSize.Width;
-            else if (this.Unit == BoxValueUnit.Vh) value = this.Length / 100.0f * viewSize.Height;
-            else if (this.Unit == BoxValueUnit.Vmax) value = this.Length / 100.0f * Math.Max(viewSize.Width, viewSize.Height);
-            else if (this.Unit == BoxValueUnit.Vmin) value = this.Length / 100.0f * Math.Min(viewSize.Width, viewSize.Height);
-            else if (this.Unit == BoxValueUnit.Parcent) value = this.Length / 100.0f * baseLength;
-            else value = float.NaN;
-            return value;
+            public float Top;
+            public float Left;
+            public float Right;
+            public float Bottom;
+
+            public PositionF(float left, float top, float right, float bottom)
+            {
+                this.Top = top;
+                this.Left = left;
+                this.Right = right;
+                this.Bottom = bottom;
+            }
         }
 
-        public override string ToString()
+        //##
+        struct BoxPosition
         {
-            return this.IsNull() ? "null" : this.ValueString;
-        }
-    }
+            public BoxValue Top;
+            public BoxValue Left;
+            public BoxValue Right;
+            public BoxValue Bottom;
 
-    //##
-    struct PositionF
-    {
-        public float Top;
-        public float Left;
-        public float Right;
-        public float Bottom;
+            public BoxPosition(string top, string right, string bottom, string left)
+            {
+                this.Top = new BoxValue(top);
+                this.Left = new BoxValue(left);
+                this.Right = new BoxValue(right);
+                this.Bottom = new BoxValue(bottom);
+            }
 
-        public PositionF(float left, float top, float right, float bottom)
-        {
-            this.Top = top;
-            this.Left = left;
-            this.Right = right;
-            this.Bottom = bottom;
-        }
-    }
+            public PositionF GetCalculated(Size viewSize, int baseWidth, int baseHeight)
+            {
+                return new PositionF(
+                    this.Left.GetCalculated(viewSize, baseWidth),
+                    this.Top.GetCalculated(viewSize, baseHeight),
+                    this.Right.GetCalculated(viewSize, baseWidth),
+                    this.Bottom.GetCalculated(viewSize, baseHeight));
+            }
 
-    //##
-    struct BoxPosition
-    {
-        public BoxValue Top;
-        public BoxValue Left;
-        public BoxValue Right;
-        public BoxValue Bottom;
-
-        public BoxPosition(string top, string right, string bottom, string left)
-        {
-            this.Top = new BoxValue(top);
-            this.Left = new BoxValue(left);
-            this.Right = new BoxValue(right);
-            this.Bottom = new BoxValue(bottom);
-        }
-
-        public PositionF GetCalculated(Size viewSize, int baseWidth, int baseHeight)
-        {
-            return new PositionF(
-                this.Left.GetCalculated(viewSize, baseWidth),
-                this.Top.GetCalculated(viewSize, baseHeight),
-                this.Right.GetCalculated(viewSize, baseWidth),
-                this.Bottom.GetCalculated(viewSize, baseHeight));
-        }
-
-        public override string ToString()
-        {
-            return $"Top:{this.Top}, Right:{this.Right}, Bottom:{this.Bottom}, Left:{this.Left}";
+            public override string ToString()
+            {
+                return $"Top:{this.Top}, Right:{this.Right}, Bottom:{this.Bottom}, Left:{this.Left}";
+            }
         }
     }
 }

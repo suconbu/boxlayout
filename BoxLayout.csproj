@@ -6,7 +6,7 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{76DAB75A-DACC-4E4D-ACEE-EFFD3CE1340A}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>boxlayout</RootNamespace>
+    <RootNamespace>Suconbu.BoxLayout</RootNamespace>
     <AssemblyName>boxlayout</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -69,6 +69,7 @@
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
     </Compile>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">

@@ -1,4 +1,4 @@
-﻿namespace BoxLayouting
+﻿namespace Suconbu.BoxLayouting
 {
     partial class FormTest
     {

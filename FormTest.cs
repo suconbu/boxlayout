@@ -5,7 +5,7 @@ using System.IO;
 using System.Text;
 using System.Windows.Forms;
 
-namespace BoxLayouting
+namespace Suconbu.BoxLayouting
 {
     public partial class FormTest : Form
     {
@@ -34,14 +34,16 @@ namespace BoxLayouting
                 {
                     if (type == "byjson")
                     {
-                        container.AddFromJson(File.ReadAllText(@"..\..\test.json"), (box, dataText) =>
+                        container.AddFromFile(@"..\..\test.json", (box, dataText) =>
+                        //container.AddFromJson(File.ReadAllText(@"..\..\test.json"), (box, dataText) =>
                         {
                             box.Data = new Pen(Color.FromName(dataText), 1.0f);
                         });
                     }
                     else if(type == "byxml")
                     {
-                        container.AddFromXml(File.ReadAllText(@"..\..\test.xml"), (box, dataText) =>
+                        container.AddFromFile(@"..\..\test.xml", (box, dataText) =>
+                        //container.AddFromXml(File.ReadAllText(@"..\..\test.xml"), (box, dataText) =>
                         {
                             box.Data = new Pen(Color.FromName(dataText), 1.0f);
                         });
