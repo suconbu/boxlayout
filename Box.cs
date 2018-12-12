@@ -374,6 +374,26 @@ namespace Suconbu.BoxLayouting
             }
         }
 
+        public static Rectangle GetContainRectangle(Size source, Size dest, float horizontalCenter = 0.5f, float verticalCenter = 0.5f)
+        {
+            var contain = new Rectangle();
+            float sourceAspect = (float)source.Width / source.Height;
+            float destAspect = (float)dest.Width / dest.Height;
+            if (sourceAspect < destAspect)
+            {
+                contain.Width = source.Width * dest.Height / source.Height;
+                contain.Height = dest.Height;
+            }
+            else
+            {
+                contain.Width = dest.Width;
+                contain.Height = source.Height * dest.Width / source.Width;
+            }
+            contain.X = (int)((dest.Width - contain.Width) * horizontalCenter);
+            contain.Y = (int)((dest.Height - contain.Height) * verticalCenter);
+            return contain;
+        }
+
         internal void RecalculateBoundsRecursive(Size viewSize)
         {
             Rectangle parentBounds = this.IsRoot() ? new Rectangle(0, 0, viewSize.Width, viewSize.Height) : this.parent.Bounds;

@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("BoxLayout")]
-[assembly: AssemblyCopyright("Copyright © D.Miwa 2018")]
+[assembly: AssemblyCopyright("Copyright © 2018 D.Miwa")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

@@ -10,6 +10,7 @@ namespace Suconbu.BoxLayouting
     public partial class FormTest : Form
     {
         BoxContainer boxContainer = new BoxContainer();
+        Image testImage = new Bitmap(@"../../test.png");
 
         public FormTest()
         {
@@ -130,7 +131,7 @@ namespace Suconbu.BoxLayouting
                     sb.AppendLine($"{box.Name}:{box.Bounds.ToString()}");
                 });
                 var t = sb.ToString();
-                File.WriteAllText($"test_bounds_{type}_{DateTime.Now.Ticks}.txt", t);
+                //File.WriteAllText($"test_bounds_{type}_{DateTime.Now.Ticks}.txt", t);
                 Debug.Assert(previous == null || previous == t);
                 previous = t;
 
@@ -164,6 +165,15 @@ namespace Suconbu.BoxLayouting
 
             this.boxContainer.Traverse(box =>
             {
+                if(box.Name == "b")
+                {
+                    var containRect = Box.GetContainRectangle(box.Bounds.Size, testImage.Size);
+                    e.Graphics.DrawImage(this.testImage, box.Bounds, containRect, GraphicsUnit.Pixel);
+                    //var containRect = Box.GetContainRectangle(this.testImage.Size, box.Bounds.Size);
+                    //containRect.Offset(box.Bounds.Location);
+                    //e.Graphics.DrawImage(this.testImage, containRect, 0, 0, this.testImage.Width, this.testImage.Height, GraphicsUnit.Pixel);
+                }
+
                 var pen = (Pen)box.Data;
                 e.Graphics.DrawRectangle(pen, box.Bounds);
                 e.Graphics.DrawLines(pen, new[]
