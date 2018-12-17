@@ -424,7 +424,7 @@ namespace Suconbu.BoxLayouting
             }
             else
             {
-                bounds.X = !float.IsNaN(position.Left) ? (int)position.Left : 0;
+                bounds.X = !float.IsNaN(position.Left) ? (int)(parentBounds.Left + position.Left) : parentBounds.Left;
                 bounds.Width = !float.IsNaN(position.Left) && !float.IsNaN(position.Right) ? (int)(parentBounds.Width - position.Left - position.Right) : 0;
             }
 
@@ -447,7 +447,7 @@ namespace Suconbu.BoxLayouting
             }
             else
             {
-                bounds.Y = !float.IsNaN(position.Top) ? (int)position.Top : 0;
+                bounds.Y = !float.IsNaN(position.Top) ? (int)(parentBounds.Top + position.Top) : parentBounds.Top;
                 bounds.Height = (!float.IsNaN(position.Top) && !float.IsNaN(position.Bottom)) ? (int)(parentBounds.Height - position.Top - position.Bottom) : 0;
             }
 
