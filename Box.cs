@@ -82,7 +82,7 @@ namespace Suconbu.BoxLayouting
 
         public void Traverse(Action<Box> handler)
         {
-            this.rootBox.TraverseUp(handler);
+            this.rootBox.TraverseDown(handler);
         }
 
         //##
@@ -362,15 +362,15 @@ namespace Suconbu.BoxLayouting
             set { this.boxCenterY = new BoxValue(value); }
         }
 
-        public void TraverseUp(Action<Box> handler)
+        public void TraverseDown(Action<Box> handler)
         {
-            foreach(var box in this.boxes.Values)
+            foreach (var box in this.boxes.Values)
             {
-                if(box.boxes.Count > 0)
-                {
-                    box.TraverseUp(handler);
-                }
                 handler(box);
+                if (box.boxes.Count > 0)
+                {
+                    box.TraverseDown(handler);
+                }
             }
         }
 
