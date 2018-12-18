@@ -57,15 +57,10 @@ Note:
 ```
 <?xml version="1.0" encoding="utf-8"?>
 <root>
-  <box name="a" data="Red" position="50px">
-    <box name="a.a" data="Orange" size-width="50px" size-height="50px"></box>
-    <box name="a.b" data="Orange" size="50px 50px" position-top="50px" position-right="50px"/>
-    <box name="a.c" data="Orange" size="50px 50px" position-bottom="50px" position-left="50px"/>
-    <box name="a.d" data="Orange" size="50px 50px" position="100px 100px 100px 100px"/>
-    <box name="a.e" data="Orange" size="50px 50px" center="50%" position-top="100px" position-right="100px" position-bottom="100px" position-left="100px"/>
-  </box>
-  <box name="b" data="Blue" position="20vh 20vw">
-    <box name="b.a" data="RoyalBlue" size="100px" position-top="-50px" position-left="+50px"/>
+  <box name="a" position="20px 30% 40px 20%">
+    <box name="a.a" size="100px 50px" position-left="50px" position-top="50px"></box>
+    <box name="a.b" size="50px 100px" position-right="50px" position-bottom="50px"/>
+    <box name="a.c" size="20vw 20vh" center="50% 80%"/>
   </box>
 </root>
 ```
@@ -76,60 +71,34 @@ Note:
 [
   {
     "name": "a",
-    "data": "Red",
-    "position": "50px",
+    "position": "20px 30% 40px 20%",
     "children": [
       {
         "name": "a.a",
-        "data": "Orange",
-        "size-width": "50px",
-        "size-height": "50px"
+        "size": "100px 50px",
+        "position-left": "50px",
+        "position-top": "50px"
       },
       {
         "name": "a.b",
-        "data": "Orange",
-        "size": "50px 50px",
-        "position-top": "50px",
-        "position-right": "50px"
+        "size": "50px 100px",
+        "position-right": "50px",
+        "position-bottom": "50px"
       },
       {
         "name": "a.c",
-        "data": "Orange",
-        "size": "50px 50px",
-        "position-bottom": "50px",
-        "position-left": "50px"
-      },
-      {
-        "name": "a.d",
-        "data": "Orange",
-        "size": "50px 50px",
-        "position": "100px 100px 100px 100px"
-      },
-      {
-        "name": "a.e",
-        "data": "Orange",
-        "size": "50px 50px",
-        "center": "50%",
-        "position-top": "100px",
-        "position-right": "100px",
-        "position-bottom": "100px",
-        "position-left": "100px"
-      }
-    ]
-  },
-  {
-    "name": "b",
-    "data": "Blue",
-    "position": "20vh 20vw",
-    "children": [
-      {
-        "name": "b.a",
-        "data": "RoyalBlue",
-        "size": "100px",
-        "position-top": "-50px",
-        "position-left": "+50px"
+        "size": "20vw 20vh",
+        "center": "50% 80%"
       }
     ]
   }
 ]
 ```
+
+## Result of layout
+
+View size = 800 x 400 [px]  
+![LayoutImage](sample_800x400.png)
+
+View size = 400 x 400 [px]  
+![LayoutImage](sample_400x400.png)
