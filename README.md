@@ -1,27 +1,56 @@
-﻿# 属性
+﻿# Overview
 
-属性名  | 説明  | 指定
--------|-------|-------
-name   | 名前(重複不可)(必須) | string 
-position | 上下左右位置指定 | {top} {right} {bottom} {left}
-size   | 幅高さ指定   | {width} {height}
-center | 中心位置指定(position指定は無視) | {horizontal} {vertical}
-data   | 任意の文字列 | string
+This is very simple layout-engine for C# application.
 
-# 数値単位
+# Usage example
 
-単位 | 説明
------|--
-px   | ピクセル
-%    | 親要素の幅/高さに対する割合(百分率)
-vw   | コンテナの幅に対する割合(百分率)
-vh   | コンテナの高さに対する割合(百分率)
-vmax | コンテナの長辺に対する割合(百分率)
-vmin | コンテナの短辺に対する割合(百分率)
+```
+// Initialize
+var container = new BoxContainer();
+container.AddBoxFromFile("boxlayout.json");
+:
+// On view resizing
+container.Width = {view-width};
+container.Height = {view-height};
+container.Recalculate();
+:
+// On drawing
+container.Traverse(box => {
+  graphics.DrawRectangle(pen, box.Bounds);
+});
+```
 
-※ 数値が 0 の場合のみ単位指定を省略可能
+# Specific attribute
 
-# ファイル記述例
+Name     | Description                      | Format
+---------|----------------------------------|--------
+name     | Name of box. [Unique] [Required] | {name}
+position | Position from parent box.        | 1: {all} <br> 2: {top & bottom} {left & right} <br> 3: {top} {left & right} {bottom} <br> 4: {top} {right} {bottom} {left}
+size     | Width and height of box.         | 1: {width & height} <br> 2: {width} {height}
+center   | Position of box center from left/top of parent box. | 1: {horizontal & vertical} <br> 2: {horizontal} {vertical}
+
+Note:  
+* Other attributes than above can be specified arbitrarily.  
+  The user specified attribute can be obtained from 'Box' instance with the following code like that.
+  ```
+  string foo = box["foo"];
+  ```
+
+# Unit types of value
+
+Unit | Description
+-----|-------------
+px   | Pixel.
+%    | Ratio to the parent box width/height.
+vw   | Ratio to width of BoxContainer.
+vh   | Ratio to height of BoxContainer.
+vmax | Ratio to long-side of BoxContainer.
+vmin | Ratio to short-side of BoxContainer.
+
+Note:  
+* If value is '0', unit can be omitted.
+
+# Box definition example
 
 ## XML
 

@@ -23,16 +23,16 @@ namespace Suconbu.BoxLayouting
             this.Height = height;
         }
 
-        public IEnumerable<Box> AddFromFile(string path, Action<Box, string> createHandler = null)
+        public IEnumerable<Box> AddBoxFromFile(string path)
         {
             var ext = Path.GetExtension(path).ToLower();
             if(ext == ".json")
             {
-                return this.AddFromJson(File.ReadAllText(path), createHandler);
+                return this.AddBoxFromJson(File.ReadAllText(path));
             }
             else if(ext == ".xml")
             {
-                return this.AddFromXml(File.ReadAllText(path), createHandler);
+                return this.AddBoxFromXml(File.ReadAllText(path));
             }
             else
             {
@@ -40,14 +40,14 @@ namespace Suconbu.BoxLayouting
             }
         }
 
-        public IEnumerable<Box> AddFromJson(string definitionJson, Action<Box, string> createHandler = null)
+        public IEnumerable<Box> AddBoxFromJson(string definitionJson)
         {
             var jboxes = JArray.Parse(definitionJson);
-            BoxFactory.AddFromJson(this.rootBox, jboxes, createHandler);
-            return this.rootBox.Children;
+            BoxFactory.AddFromJson(this.rootBox, jboxes);
+            return this.rootBox.Children.Values;
         }
 
-        public IEnumerable<Box> AddFromXml(string definitionXml, Action<Box, string> createHandler = null)
+        public IEnumerable<Box> AddBoxFromXml(string definitionXml)
         {
             var setting = new XmlReaderSettings();
             setting.IgnoreComments = true;
@@ -55,9 +55,9 @@ namespace Suconbu.BoxLayouting
             using (var sr = new StringReader(definitionXml))
             using (var xr = XmlReader.Create(sr, setting))
             {
-                BoxFactory.AddFromXml(this.rootBox, xr, createHandler);
+                BoxFactory.AddFromXml(this.rootBox, xr);
             }
-            return this.rootBox.Children;
+            return this.rootBox.Children.Values;
         }
 
         public Box Add(string name)
@@ -88,59 +88,42 @@ namespace Suconbu.BoxLayouting
         //##
         static class BoxFactory
         {
-            public static void AddFromJson(Box parentBox, JToken jboxes, Action<Box, string> createHandler)
+            public static void AddFromJson(Box parentBox, JToken jboxes)
             {
                 foreach (var jbox in jboxes.Values<JObject>())
                 {
                     var box = new Box();
-                    string data = null;
                     foreach (var prop in jbox)
                     {
                         if (prop.Key == "children")
                         {
-                            AddFromJson(box, prop.Value, createHandler);
-                        }
-                        else if (prop.Key == "data")
-                        {
-                            data = prop.Value.Value<string>();
+                            AddFromJson(box, prop.Value);
                         }
                         else
                         {
                             SetProperty(box, prop.Key, prop.Value.Value<string>());
                         }
                     }
-                    createHandler?.Invoke(box, data);
                     parentBox.Add(box);
                 }
             }
 
-            public static void AddFromXml(Box parentBox, XmlReader reader, Action<Box, string> createHandler)
+            public static void AddFromXml(Box parentBox, XmlReader reader)
             {
                 while (reader.Read())
                 {
                     if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "box")
                     {
                         var box = new Box();
-                        string data = null;
                         while (reader.MoveToNextAttribute())
                         {
-                            var key = reader.LocalName;
-                            var value = reader.Value;
-                            if (key == "data")
-                            {
-                                data = value;
-                            }
-                            else
-                            {
-                                SetProperty(box, key, value);
-                            }
+                            SetProperty(box, reader.LocalName, reader.Value);
                         }
                         reader.MoveToElement();
                         if (!reader.IsEmptyElement)
                         {
-                            AddFromXml(box, reader, createHandler);
+                            AddFromXml(box, reader);
                         }
-                        createHandler?.Invoke(box, data);
                         parentBox.Add(box);
                     }
                     else if (reader.NodeType == XmlNodeType.EndElement)
@@ -154,6 +137,8 @@ namespace Suconbu.BoxLayouting
             {
                 var keys = key.Split(new[] { '-' }, StringSplitOptions.RemoveEmptyEntries);
                 var values = value.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                box[key] = value;
 
                 if (key == "name")
                 {
@@ -208,6 +193,10 @@ namespace Suconbu.BoxLayouting
                         else throw new FormatException($"Unknown key '{key}'.");
                     }
                 }
+                else
+                {
+                    ;
+                }
             }
         }
     }
@@ -219,11 +208,15 @@ namespace Suconbu.BoxLayouting
         static Box empty = new Box();
 
         public string Name { get; internal set; }
-        public object Data { get; set; }
         public Rectangle Bounds { get; private set; }
+        public Dictionary<string, object> UserData { get; private set; } = new Dictionary<string, object>();
 
-        public Box this[string name] { get { return this.boxes[name]; } }
-        public IEnumerable<Box> Children { get { return this.boxes.Values; } }
+        public string this[string name]
+        {
+            get { return this.properties.TryGetValue(name, out var s) ? s : null; }
+            set { this.properties[name] = value; }
+        }
+        public IReadOnlyDictionary<string, Box> Children { get { return this.boxes; } }
 
         BoxPosition boxPosition;
 
@@ -234,7 +227,8 @@ namespace Suconbu.BoxLayouting
         BoxValue boxCenterY;
 
         Box parent;
-        readonly Dictionary<string, Box> boxes = new Dictionary<string, Box>();
+        Dictionary<string, Box> boxes = new Dictionary<string, Box>();
+        Dictionary<string, string> properties = new Dictionary<string, string>();
 
         internal Box() { }
 
