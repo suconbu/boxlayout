@@ -55,20 +55,20 @@
         "position-top": "-50px",
         "position-left": "+50px",
         "draw": "image-cover",
-        "file": "kuppi.jpg"
+        "file": "test.jpg"
       },
       {
         "name": "b.b",
         "position": "60% 30% 10% 20%",
         "draw": "image-contain",
-        "file": "kuppi.jpg"
+        "file": "test.jpg"
       },
       {
         "name": "b.c",
         "center": "80% 20%",
         "size": "20vmax 20vmin",
         "draw": "image-stretch",
-        "file": "kuppi.jpg"
+        "file": "test.jpg"
       }
     ]
   }

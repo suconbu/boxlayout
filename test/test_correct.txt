@@ -1,0 +1,10 @@
+a:{X=50,Y=50,Width=700,Height=350}
+a.a:{X=50,Y=50,Width=50,Height=50}
+a.b:{X=650,Y=100,Width=50,Height=50}
+a.c:{X=100,Y=300,Width=50,Height=50}
+a.d:{X=150,Y=150,Width=50,Height=50}
+a.e:{X=375,Y=200,Width=50,Height=50}
+b:{X=160,Y=90,Width=480,Height=270}
+b.a:{X=210,Y=40,Width=100,Height=100}
+b.b:{X=256,Y=252,Width=240,Height=81}
+b.c:{X=464,Y=99,Width=160,Height=90}

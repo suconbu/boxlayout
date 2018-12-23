@@ -7,12 +7,10 @@ This is very simple layout-engine for C# application.
 ```
 // Initialize
 var container = new BoxContainer();
-container.AddBoxFromFile("boxlayout.json");
+container.AddFromFile("boxlayout.json");
 :
 // On view resizing
-container.Width = {view-width};
-container.Height = {view-height};
-container.Recalculate();
+container.Resize({view-size});
 :
 // On drawing
 container.Traverse(box => {
@@ -50,7 +48,7 @@ vmin | Ratio to short-side of BoxContainer.
 Note:  
 * If value is '0', unit can be omitted.
 
-# Box definition example
+# Box definition sample
 
 ## XML
 
@@ -95,7 +93,7 @@ Note:
 ]
 ```
 
-## Result of layout
+## Result of layout using sample
 
 View size = 800 x 400 [px]  
 ![LayoutImage](sample_800x400.png)

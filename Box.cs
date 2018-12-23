@@ -1,8 +1,13 @@
-﻿using Newtonsoft.Json.Linq;
+﻿#define BOX_SUPPORT_JSON
+
+#if BOX_SUPPORT_JSON
+using Newtonsoft.Json.Linq;
+#endif//BOX_SUPPORT_JSON
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 
@@ -11,43 +16,40 @@ namespace Suconbu.BoxLayouting
     //## 
     public class BoxContainer
     {
-        public int Width { get; set; }
-        public int Height { get; set; }
+        public int Width { get { return this.Size.Width; } }
+        public int Height { get { return this.Size.Height; } }
+        public Size Size { get; private set; }
 
-        Box rootBox = new Box(string.Empty);
+        readonly Box rootBox = new Box(string.Empty);
 
         public BoxContainer() { }
-        public BoxContainer(int width, int height)
-        {
-            this.Width = width;
-            this.Height = height;
-        }
 
-        public IEnumerable<Box> AddBoxFromFile(string path)
+        public IEnumerable<Box> AddFromFile(string path)
         {
             var ext = Path.GetExtension(path).ToLower();
-            if(ext == ".json")
+#if BOX_SUPPORT_JSON
+            if (ext == ".json")
             {
-                return this.AddBoxFromJson(File.ReadAllText(path));
+                return this.AddFromJsonString(File.ReadAllText(path));
             }
-            else if(ext == ".xml")
+#endif//BOX_SUPPORT_JSON
+            if (ext == ".xml")
             {
-                return this.AddBoxFromXml(File.ReadAllText(path));
+                return this.AddFromXmlString(File.ReadAllText(path));
             }
-            else
-            {
-                throw new NotSupportedException($"Not supported extension '{ext}'.");
-            }
+            throw new NotSupportedException($"Not supported extension '{ext}'.");
         }
 
-        public IEnumerable<Box> AddBoxFromJson(string definitionJson)
+#if BOX_SUPPORT_JSON
+        public IEnumerable<Box> AddFromJsonString(string definitionJson)
         {
             var jboxes = JArray.Parse(definitionJson);
             BoxFactory.AddFromJson(this.rootBox, jboxes);
             return this.rootBox.Children.Values;
         }
+#endif//BOX_SUPPORT_JSON
 
-        public IEnumerable<Box> AddBoxFromXml(string definitionXml)
+        public IEnumerable<Box> AddFromXmlString(string definitionXml)
         {
             var setting = new XmlReaderSettings();
             setting.IgnoreComments = true;
@@ -62,32 +64,52 @@ namespace Suconbu.BoxLayouting
 
         public Box Add(string name)
         {
-            return this.rootBox.Add(name);
+            return this.rootBox.AddChild(name);
         }
 
         public void Remove(string name)
         {
-            this.rootBox.Remove(name);
+            this.rootBox.RemoveChild(name);
         }
 
         public void Clear()
         {
-            this.rootBox.Clear();
+            this.rootBox.ClearChildren();
         }
 
-        public void Recalculate()
+        public void Resize(Size size)
         {
-            this.rootBox.RecalculateBoundsRecursive(new Size(this.Width, this.Height));
+            if (this.Size != size)
+            {
+                this.Size = size;
+                this.rootBox.RecalculateBoundsRecursive(size);
+            }
         }
 
-        public void Traverse(Action<Box> handler)
+        public void Resize(int width, int height)
+        {
+            this.Resize(new Size(width, height));
+        }
+
+        public void TraverseDown(Action<Box> handler)
         {
             this.rootBox.TraverseDown(handler);
+        }
+
+        public override string ToString()
+        {
+            var sb = new StringBuilder();
+            this.TraverseDown(box =>
+            {
+                sb.AppendLine(box.ToString());
+            });
+            return sb.ToString();
         }
 
         //##
         static class BoxFactory
         {
+#if BOX_SUPPORT_JSON
             public static void AddFromJson(Box parentBox, JToken jboxes)
             {
                 foreach (var jbox in jboxes.Values<JObject>())
@@ -104,9 +126,10 @@ namespace Suconbu.BoxLayouting
                             SetProperty(box, prop.Key, prop.Value.Value<string>());
                         }
                     }
-                    parentBox.Add(box);
+                    parentBox.AddChild(box);
                 }
             }
+#endif//BOX_SUPPORT_JSON
 
             public static void AddFromXml(Box parentBox, XmlReader reader)
             {
@@ -124,7 +147,7 @@ namespace Suconbu.BoxLayouting
                         {
                             AddFromXml(box, reader);
                         }
-                        parentBox.Add(box);
+                        parentBox.AddChild(box);
                     }
                     else if (reader.NodeType == XmlNodeType.EndElement)
                     {
@@ -216,7 +239,7 @@ namespace Suconbu.BoxLayouting
             get { return this.properties.TryGetValue(name, out var s) ? s : null; }
             set { this.properties[name] = value; }
         }
-        public IReadOnlyDictionary<string, Box> Children { get { return this.boxes; } }
+        public IReadOnlyDictionary<string, Box> Children { get { return this.children; } }
 
         BoxPosition boxPosition;
 
@@ -227,7 +250,7 @@ namespace Suconbu.BoxLayouting
         BoxValue boxCenterY;
 
         Box parent;
-        Dictionary<string, Box> boxes = new Dictionary<string, Box>();
+        Dictionary<string, Box> children = new Dictionary<string, Box>();
         Dictionary<string, string> properties = new Dictionary<string, string>();
 
         internal Box() { }
@@ -239,38 +262,38 @@ namespace Suconbu.BoxLayouting
 
         public bool IsEmtpy() { return this.Name == null; }
 
-        public Box Add(string name)
+        public Box AddChild(string name)
         {
             if (this.IsEmtpy()) return Empty;
             var box = new Box(name);
             box.parent = this;
-            this.boxes.Add(box.Name, box);
+            this.children.Add(box.Name, box);
             return box;
         }
 
-        public Box Add(Box box)
+        public Box AddChild(Box box)
         {
             box.parent = this;
-            this.boxes.Add(box.Name, box);
+            this.children.Add(box.Name, box);
             return box;
         }
 
-        public void Remove(string name)
+        public void RemoveChild(string name)
         {
-            if(this.boxes.TryGetValue(name, out var box))
+            if(this.children.TryGetValue(name, out var box))
             {
                 box.parent = null;
-                this.boxes.Remove(name);
+                this.children.Remove(name);
             }
         }
 
-        public void Clear()
+        public void ClearChildren()
         {
-            this.boxes.Clear();
+            this.children.Clear();
         }
 
         // Position
-        // 親Boxの上下左右からの距離を指定
+        // Set the distance from the bounds of parent Box.
         public void SetPosition(string all)
         {
             this.boxPosition = new BoxPosition(all, all, all, all);
@@ -309,8 +332,8 @@ namespace Suconbu.BoxLayouting
         }
 
         // Size
-        // Boxの幅高さを指定
-        // Size指定ありかつPositionで両端指定(LeftとRight/TopとBottom)されてた場合はLeft/TopとSizeを採用
+        // Set the width / height.
+        // If both sides are specified by Position, will adopt the Left / Top.
         public void SetSize(string widthHeight)
         {
             this.boxWidth = new BoxValue(widthHeight);
@@ -333,8 +356,8 @@ namespace Suconbu.BoxLayouting
         }
 
         // Center
-        // Boxの中心を親要素のどこに持ってくるかを指定
-        // Centerを指定したらPositionは無視
+        // Specify the position of the center of Box relative of the parent Box.
+        // Position is ignored when this parameter is set.
         public void SetCenter(string horizontalVertical)
         {
             this.boxCenterX = new BoxValue(horizontalVertical);
@@ -358,13 +381,24 @@ namespace Suconbu.BoxLayouting
 
         public void TraverseDown(Action<Box> handler)
         {
-            foreach (var box in this.boxes.Values)
+            this.Traverse(true, handler);
+        }
+
+        public void TraverseUp(Action<Box> handler)
+        {
+            this.Traverse(false, handler);
+        }
+
+        void Traverse(bool topToBottom, Action<Box> handler)
+        {
+            foreach (var box in this.children.Values)
             {
-                handler(box);
-                if (box.boxes.Count > 0)
+                if (topToBottom) handler(box);
+                if (box.children.Count > 0)
                 {
-                    box.TraverseDown(handler);
+                    box.Traverse(topToBottom, handler);
                 }
+                if (!topToBottom) handler(box);
             }
         }
 
@@ -388,6 +422,11 @@ namespace Suconbu.BoxLayouting
             return contain;
         }
 
+        public override string ToString()
+        {
+            return $"{this.Name}:{this.Bounds.ToString()}";
+        }
+
         internal void RecalculateBoundsRecursive(Size viewSize)
         {
             Rectangle parentBounds = this.IsRoot() ? new Rectangle(0, 0, viewSize.Width, viewSize.Height) : this.parent.Bounds;
@@ -401,10 +440,8 @@ namespace Suconbu.BoxLayouting
 
             if(!float.IsNaN(width))
             {
-                // Size指定あり
                 if (!float.IsNaN(centerX))
                 {
-                    // Center指定あり
                     bounds.X = (int)(parentBounds.Left + centerX - (width / 2.0f));
                 }
                 else
@@ -424,10 +461,8 @@ namespace Suconbu.BoxLayouting
 
             if (!float.IsNaN(height))
             {
-                // Size指定あり
                 if (!float.IsNaN(centerY))
                 {
-                    // Center指定あり
                     bounds.Y = (int)(parentBounds.Top + centerY - (height / 2.0f));
                 }
                 else
@@ -447,7 +482,7 @@ namespace Suconbu.BoxLayouting
 
             this.Bounds = bounds;
 
-            foreach (var box in this.boxes.Values)
+            foreach (var box in this.children.Values)
             {
                 box.RecalculateBoundsRecursive(viewSize);
             }
@@ -455,7 +490,6 @@ namespace Suconbu.BoxLayouting
 
         bool IsRoot() { return this.parent == null; }
 
-        // 単位
         enum BoxValueUnit { Null, Pixel, Parcent, Vw, Vh, Vmax, Vmin }
 
         //##
@@ -489,7 +523,7 @@ namespace Suconbu.BoxLayouting
                         }
                         else
                         {
-                            // 0だけは単位省略が許される
+                            // Unit can be omitted in '0'.
                             this.Unit = (this.Length == 0.0f) ? BoxValueUnit.Pixel : throw new ArgumentException("Unit of value is missing.");
                         }
                     }
@@ -535,6 +569,11 @@ namespace Suconbu.BoxLayouting
                 this.Left = left;
                 this.Right = right;
                 this.Bottom = bottom;
+            }
+
+            public override string ToString()
+            {
+                return $"Top:{this.Top}, Right:{this.Right}, Bottom:{this.Bottom}, Left:{this.Left}";
             }
         }
 

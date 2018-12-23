@@ -27,7 +27,7 @@ namespace Suconbu.BoxLayouting
         {
             base.OnLoad(e);
 
-            this.SetupBox();
+            this.Test();
 
             //this.watcher = new FileSystemWatcher(@".");
             //this.watcher.NotifyFilter = NotifyFilters.LastWrite;
@@ -44,10 +44,7 @@ namespace Suconbu.BoxLayouting
         {
             base.OnResize(e);
 
-            this.boxContainer.Width = this.ClientRectangle.Width;
-            this.boxContainer.Height = this.ClientRectangle.Height;
-            this.boxContainer.Recalculate();
-
+            this.boxContainer.Resize(this.ClientRectangle.Size);
             this.Invalidate();
         }
 
@@ -58,7 +55,7 @@ namespace Suconbu.BoxLayouting
             e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
             e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-            this.boxContainer.Traverse(box =>
+            this.boxContainer.TraverseDown(box =>
             {
                 object userData = null;
                 box.UserData.TryGetValue("pen", out userData);
@@ -121,18 +118,19 @@ namespace Suconbu.BoxLayouting
                 });
 
                 StringFormat sf = new StringFormat();
-                sf.LineAlignment = StringAlignment.Center;
-                sf.Alignment = StringAlignment.Center;
-                e.Graphics.DrawString(box.Name, new Font(SystemFonts.MessageBoxFont.FontFamily, 20.0f), SystemBrushes.ControlText,
+                sf.LineAlignment = StringAlignment.Near;
+                sf.Alignment = StringAlignment.Near;
+                e.Graphics.DrawString(box.Name, new Font(SystemFonts.MessageBoxFont.FontFamily, 14.0f), SystemBrushes.ControlText,
                     new RectangleF(box.Bounds.X, box.Bounds.Y, box.Bounds.Width, box.Bounds.Height), sf);
             });
         }
 
-        void SetupBox()
+        void Test()
         {
-            string previous = null;
+            var correctResultFileName = "test_correct.txt";
+            var correctString = File.ReadAllText(correctResultFileName);
+
             foreach (var type in new[] { "byproperty", "byjson", "byxml" })
-            //foreach (var type in new[] { "byxml" })
             {
                 var swCreation = Stopwatch.StartNew();
                 var container = new BoxContainer();
@@ -140,11 +138,11 @@ namespace Suconbu.BoxLayouting
                 {
                     if (type == "byjson")
                     {
-                        container.AddBoxFromFile(@"test.json");
+                        container.AddFromFile(@"test.json");
                     }
                     else if (type == "byxml")
                     {
-                        container.AddBoxFromFile(@"test.xml");
+                        container.AddFromFile(@"test.xml");
                     }
                     else
                     {
@@ -152,30 +150,30 @@ namespace Suconbu.BoxLayouting
                         //a.SetPosition("50px");
                         a.PositionTop = a.PositionLeft = a.PositionRight = a.PositionBottom = "50px";
 
-                        var aa = a.Add("a.a");
+                        var aa = a.AddChild("a.a");
                         //aa.SetSize("50px", "50px");
                         aa.SizeWidth = aa.SizeHeight = "50px";
 
-                        var ab = a.Add("a.b");
+                        var ab = a.AddChild("a.b");
                         //ab.SetSize("50px", "50px");
                         //ab.SetPosition("50px", "50px", null, null);
                         ab.SizeWidth = ab.SizeHeight = "50px";
                         ab.PositionTop = ab.PositionRight = "50px";
 
-                        var ac = a.Add("a.c");
+                        var ac = a.AddChild("a.c");
                         //ac.SetSize("50px", "50px");
                         //ac.SetPosition(null, null, "50px", "50px");
                         ac.SizeWidth = ac.SizeHeight = "50px";
                         ac.PositionBottom = ac.PositionLeft = "50px";
 
-                        var ad = a.Add("a.d");
+                        var ad = a.AddChild("a.d");
                         //ad.SetSize("50px", "50px");
                         //// Size指定ありかつPosition両端指定の場合はLeft/Topの方を採用
                         //ad.SetPosition("100px", "100px", "100px", "100px");
                         ad.SizeWidth = ad.SizeHeight = "50px";
                         ad.PositionTop = ad.PositionLeft = ad.PositionRight = ad.PositionBottom = "100px";
 
-                        var ae = a.Add("a.e");
+                        var ae = a.AddChild("a.e");
                         //ae.SetSize("50px", "50px");
                         //// %は親要素のエリアに対する割合
                         //ae.SetCenter("50%", "50%");
@@ -190,27 +188,27 @@ namespace Suconbu.BoxLayouting
                         b.PositionTop = b.PositionBottom = "20vh";
                         b.PositionLeft = b.PositionRight = "20vw";
 
-                        var ba = b.Add("b.a");
+                        var ba = b.AddChild("b.a");
                         //ba.SetSize("100px", "100px");
                         //ba.SetPosition("-50px", null, null, "+50px");
                         ba.SizeWidth = ba.SizeHeight = "100px";
                         ba.PositionTop = "-50px";
                         ba.PositionLeft = "+50px";
 
-                        var bb = b.Add("b.b");
+                        var bb = b.AddChild("b.b");
                         bb.PositionTop = "60%";
                         bb.PositionRight = "30%";
                         bb.PositionBottom = "10%";
                         bb.PositionLeft = "20%";
 
-                        var bc = b.Add("b.c");
+                        var bc = b.AddChild("b.c");
                         bc.SizeWidth = "20vmax";
                         bc.SizeHeight = "20vmin";
                         bc.CenterHorizontal = "80%";
                         bc.CenterVertical = "20%";
                     }
 
-                    container.Traverse(box =>
+                    container.TraverseDown(box =>
                     {
                         var color = Color.Black;
                         var width = 1;
@@ -259,25 +257,18 @@ namespace Suconbu.BoxLayouting
                 }
                 swCreation.Stop();
 
-                container.Width = this.ClientRectangle.Width;
-                container.Height = this.ClientRectangle.Height;
-
                 var swRecalculate = Stopwatch.StartNew();
-                for (var i = 0; i < 1000; i++)
+                for (var i = 0; i < 1000 / 2; i++)
                 {
-                    container.Recalculate();
+                    container.Resize(0, 0);
+                    container.Resize(this.ClientRectangle.Size);
                 }
                 swRecalculate.Stop();
 
-                var sb = new StringBuilder();
-                container.Traverse(box =>
-                {
-                    sb.AppendLine($"{box.Name}:{box.Bounds.ToString()}");
-                });
-                var t = sb.ToString();
-                //File.WriteAllText($"test_bounds_{type}_{DateTime.Now.Ticks}.txt", t);
-                Debug.Assert(previous == null || previous == t);
-                previous = t;
+                var resultString = container.ToString();
+                File.WriteAllText($"test_result_{type}.txt", resultString);
+                //File.WriteAllText($"test_bounds_{type}_{DateTime.Now.Ticks}.txt", treeText);
+                Debug.Assert(resultString == correctString, $"Did not matched to the '{correctResultFileName}'.");
 
                 Trace.TraceInformation($"[{type}]");
                 Trace.TraceInformation($"CreationTime: {swCreation.ElapsedMilliseconds / 1000.0f}ms");
